@@ -1,22 +1,40 @@
 // 健康管理 —— 小鸡守护你的身体（可爱风）
+// 支持：主状态（分类）可自行添加命名（不限个数）；分状态（各分类下的选项）也可自行添加/删除
 (function () {
   const DB_KEY = 'health';
-  // 分类定义
-  const CATS = {
+
+  // 默认主状态（分类）
+  const DEFAULT_CATS = {
     gi: { name:'🤢 肠胃不适', icon:'🤢', color:'#E07B20',
       opts:['拉肚子','胃痛','肚子胀','便秘','肚子疼','恶心反胃','食欲不振'] },
     ext: { name:'🤒 外感内热', icon:'🤒', color:'#D4A017',
       opts:['风寒感冒','风热感冒','发烧','喉咙痛','湿热内停','咳嗽流涕','头晕头痛'] },
     ms: { name:'💪 筋骨肉痛', icon:'💪', color:'#5B8C6A',
-      opts:['手腕腱鞘炎','肩关节劳损','上背部不适','手臂麻木','腿部麻木','下肢水肿','屁股两侧痛','颈椎不适'] }
+      opts:['手腕腱鞘炎','肩关节劳损','上背部不适','手臂麻木','腿部麻木','下肢水肿','屁股两侧痛','颈椎不适'] },
+    women: { name:'🌸 女性问题', icon:'🌸', color:'#C05A8E',
+      opts:['排卵期出血','分泌物异常','痛经','尿路感染','乳房胀痛','卵巢疼痛','月经过多','月经过少','经期时间异常'] }
   };
 
+  const PALETTE = ['#E07B20','#D4A017','#5B8C6A','#C05A8E','#7A6FF0','#E0533B','#3AA6B9','#B5683F','#8C6BD0','#4F9D69'];
+
   /* 数据结构 */
-  const get = () => DB.get(DB_KEY, { records:[], customs:{} });
+  const get = () => DB.get(DB_KEY, { records:[], customs:{}, customCats:{} });
   const set = (v) => DB.set(DB_KEY, v);
   function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
-
   function today() { return new Date().toISOString().slice(0,10); }
+
+  // 合并默认 + 自定义主状态
+  function allCats(data) {
+    return Object.assign({}, DEFAULT_CATS, data.customCats || {});
+  }
+  function catInfo(data, key) {
+    const all = allCats(data);
+    return all[key] || { name: key||'未分类', icon:'❓', color:'#999', opts:[] };
+  }
+  function pickColor(data) {
+    const used = Object.keys(data.customCats || {}).length;
+    return PALETTE[used % PALETTE.length];
+  }
 
   // 颜色加深（选中态更明显）
   function darken(hex, f) {
@@ -31,8 +49,12 @@
   let view = 'today'; // today | month | year
   let selDate = today();
   let curCat = 'gi';
+  let rootEl = null;
 
   function render(root) {
+    rootEl = root;
+    const data = get();
+    if (!allCats(data)[curCat]) curCat = 'gi';
     root.innerHTML = `
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
         <span class="chip on" id="hdToday" style="font-weight:700;background:${document.documentElement.style.getPropertyValue('--orange')||'#F2A340'};color:#fff;">📅 今天</span>
@@ -46,13 +68,18 @@
         <div style="font-size:.78rem;color:#9A8874;margin-top:2px;" id="hdWeekday">${weekday(selDate)}</div>
       </div>
 
-      <!-- 分类切换（三个分类均可点击切换，选中态加深） -->
-      <div id="hdCats" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-        ${Object.entries(CATS).map(([k,v]) => {
+      <!-- 主状态（分类）切换：可点击切换，选中态加深；自定义主状态可删除 -->
+      <div id="hdCats" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+        ${Object.entries(allCats(data)).map(([k,v]) => {
           const on = curCat===k;
           const style = on ? `background:${darken(v.color,0.18)};color:#fff;border:none;box-shadow:inset 0 2px 6px rgba(0,0,0,.28),0 2px 4px rgba(0,0,0,.12);font-weight:700;` : `background:#FFFDF8;color:${v.color};border:1.5px solid ${v.color};`;
-          return `<button class="chip ${on?'on':''}" data-cat="${k}" style="${style}">${v.name}</button>`;
+          const isCustom = !!((data.customCats||{})[k]);
+          return `<span style="position:relative;display:inline-flex;">
+            <button class="chip ${on?'on':''}" data-cat="${k}" style="${style}">${v.name}</button>
+            ${isCustom?`<span class="cat-x" data-del-cat="${k}" title="删除该分类">×</span>`:''}
+          </span>`;
         }).join('')}
+        <button class="chip sm" id="hdAddCat" style="border:2px dashed #B8A484;color:#9A8874;">＋ 新增分类</button>
       </div>
 
       <div id="hdPane"></div>
@@ -65,8 +92,22 @@
     $$('#hdCats [data-cat]').forEach(btn => {
       btn.onclick = () => { curCat = btn.dataset.cat; render(root); };
     });
+    $('#hdAddCat').onclick = () => addCategory(data);
 
     paintPane();
+  }
+
+  function addCategory(data) {
+    UI.promptBox('给新分类起个名字', '如：皮肤问题、睡眠问题、过敏...', (name) => {
+      if (!name || !name.trim()) return;
+      const key = 'c_' + uid();
+      data.customCats = data.customCats || {};
+      data.customCats[key] = { name: name.trim(), icon:'🩺', color: pickColor(data), opts:[] };
+      set(data);
+      curCat = key;
+      render(rootEl);
+      toast('已新增分类：「'+name.trim()+'」，现在可以添加它的分状态啦～');
+    });
   }
 
   function paintPane() {
@@ -80,10 +121,12 @@
 
   /* ===== 记录表单 ===== */
   function renderRecordForm(pane) {
-    const cat = CATS[curCat];
     const data = get();
+    const cats = allCats(data);
+    if (!cats[curCat]) curCat = 'gi';
+    const cat = cats[curCat];
+    const defaultOpts = cat.opts || [];
     const customs = data.customs[curCat] || [];
-    const allOpts = [...cat.opts, ...customs];
 
     // 当日已有记录
     const dayRecs = (data.records||[]).filter(r => r.date === selDate && r.cat === curCat);
@@ -91,9 +134,10 @@
     pane.innerHTML = `
       <!-- 状态选择 -->
       <div style="margin-bottom:10px;">
-        <label style="font-size:.85rem;color:${cat.color};font-weight:600;display:block;margin-bottom:4px;">${cat.icon} 状态选择</label>
+        <label style="font-size:.85rem;color:${cat.color};font-weight:600;display:block;margin-bottom:4px;">${cat.icon} 分状态选择 <small style="font-weight:normal;color:#9A8874;">（点「＋ 自定义」可新增，自定义项可点 × 删除）</small></label>
         <div id="hdStatusGrid" style="display:flex;flex-wrap:wrap;gap:6px;">
-          ${allOpts.map((o,i) => `<button class="chip sm hd-st-opt" data-v="${o}" style="${dayRecs.some(r=>r.status===o)?`background:${cat.color};color:#fff;border:none;`:''}">${esc(o)}</button>`).join('')}
+          ${defaultOpts.map((o) => `<button class="chip sm hd-st-opt" data-v="${esc(o)}" style="${dayRecs.some(r=>r.status===o)?`background:${cat.color};color:#fff;border:none;`:''}">${esc(o)}</button>`).join('')}
+          ${customs.map((o) => `<button class="chip sm hd-st-opt" data-v="${esc(o)}" style="${dayRecs.some(r=>r.status===o)?`background:${cat.color};color:#fff;border:none;`:`border:1.5px dashed ${cat.color};color:${cat.color};`}">${esc(o)} <span class="st-x" data-del-custom="${esc(o)}">×</span></button>`).join('')}
           <button class="chip sm" id="hdAddCustom" style="border:2px dashed #B8A484;color:#9A8874;">＋ 自定义</button>
         </div>
       </div>
@@ -142,24 +186,26 @@
     $('#hdScore').oninput = () => { $('#hdScoreVal').textContent = $('#hdScore').value; };
     // 状态选择
     $$('.hd-st-opt').forEach(btn => {
-      btn.onclick = () => {
+      btn.onclick = (e) => {
+        if (e.target.classList.contains('st-x')) return; // × 号单独处理
         btn.style.background = cat.color;
         btn.style.color = '#fff';
         btn.style.border = 'none';
       };
     });
-    // 自定义状态
+    // 自定义分状态
     $('#hdAddCustom').onclick = () => {
-      const val = prompt('输入自定义状态名称：');
-      if (!val || !val.trim()) return;
-      const v = val.trim();
-      data.customs = data.customs || {};
-      data.customs[curCat] = data.customs[curCat] || [];
-      if (!data.customs[curCat].includes(v)) {
-        data.customs[curCat].push(v);
-        set(data);
-        paintPane();
-      }
+      UI.promptBox('自定义分状态', '输入新状态名称（如：偏头痛、过敏等）：', (val) => {
+        if (!val || !val.trim()) return;
+        const v = val.trim();
+        data.customs = data.customs || {};
+        data.customs[curCat] = data.customs[curCat] || [];
+        if (!data.customs[curCat].includes(v)) {
+          data.customs[curCat].push(v);
+          set(data);
+          paintPane();
+        }
+      });
     };
     // 保存
     $('#hdSaveBtn').onclick = () => {
@@ -181,18 +227,45 @@
       paintPane();
     };
 
-    // 删除记录
+    // 各种删除/移除
     pane.onclick = (e) => {
-      if (e.target.dataset.act === 'delRec') {
-        const i = +e.target.dataset.i;
-        const dayRecs = (get().records||[]).filter(r => r.date === selDate && r.cat === curCat);
+      const t = e.target;
+      // 删除某条记录
+      if (t.dataset.act === 'delRec') {
+        const i = +t.dataset.i;
+        const recs = (get().records||[]).filter(r => r.date === selDate && r.cat === curCat);
         if (confirmBox('删除这条记录？')) {
-          const delId = dayRecs[i].id;
+          const delId = recs[i].id;
           const d = get();
           d.records = (d.records||[]).filter(r => r.id !== delId);
           set(d);
           paintPane();
         }
+        return;
+      }
+      // 删除自定义分状态
+      if (t.dataset.delCustom) {
+        const v = t.dataset.delCustom;
+        if (!confirmBox('删除分状态「'+v+'」？已记录的历史不会消失。')) return;
+        const d = get();
+        d.customs = d.customs || {};
+        d.customs[curCat] = (d.customs[curCat]||[]).filter(x => x !== v);
+        set(d);
+        paintPane();
+        return;
+      }
+      // 删除自定义主状态
+      if (t.dataset.delCat) {
+        const k = t.dataset.delCat;
+        if (!confirmBox('删除该分类「'+catInfo(get(),k).name+'」？该分类下已记录的历史数据会保留，只是不再显示此分类。')) return;
+        const d = get();
+        d.customCats = d.customCats || {};
+        delete d.customCats[k];
+        if (d.customs) delete d.customs[k];
+        if (curCat === k) curCat = 'gi';
+        set(d);
+        render(rootEl);
+        return;
       }
     };
   }
@@ -203,23 +276,24 @@
     const daysInMonth = new Date(y, m, 0).getDate();
     const firstDay = new Date(y, m-1, 1).getDay(); // 0=Sun
     const data = get();
-    
+
     let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;">';
     ['日','一','二','三','四','五','六'].forEach(d => html += `<div style="padding:4px;font-size:.75rem;color:#9A8874;font-weight:600;">${d}</div>`);
     for(let i=0;i<firstDay;i++) html += '<div></div>';
-    
+
     for(let d=1;d<=daysInMonth;d++) {
       const ds = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const recs = (data.records||[]).filter(r=>r.date===ds);
       const hasRec = recs.length > 0;
       const isToday = ds === today();
-      html += `<div class="cal-day ${isToday?'cal-today':''}" data-d="${ds}" style="padding:6px 2px;border-radius:6px;cursor:pointer;${hasRec?'background:#FFE8D6;border:1.5px solid '+CATS[recs[0].cat].color:''}${isToday&&!hasRec?';border:1.5px solid #F2A340':''}">
+      const ci = hasRec ? catInfo(data, recs[0].cat) : null;
+      html += `<div class="cal-day ${isToday?'cal-today':''}" data-d="${ds}" style="padding:6px 2px;border-radius:6px;cursor:pointer;${hasRec?'background:#FFE8D6;border:1.5px solid '+ci.color:''}${isToday&&!hasRec?';border:1.5px solid #F2A340':''}">
         <div style="font-size:.82rem;font-weight:${isToday?'700':'500'};${isToday&&(!hasRec)?'color:#F2A340':''}">${d}</div>
-        ${hasRec?`<div style="font-size:.55rem;color:${CATS[recs[0].cat].color};margin-top:1px;">${recs.length}条</div>`:''}
+        ${hasRec?`<div style="font-size:.55rem;color:${ci.color};margin-top:1px;">${recs.length}条</div>`:''}
       </div>`;
     }
     html += '</div>';
-    
+
     // 月份导航
     html = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -234,7 +308,7 @@
     pane.innerHTML = html;
     $('#mPrev').onclick = () => { selDate = `${y}-${String(m-1||12).padStart(2,'0')}-01`; if(m===1)selDate=`${y-1}-12-01`; paintPane(); };
     $('#mNext').onclick = () => { selDate = `${y}-${String(m+1<=12?m+1:1).padStart(2,'0')}-01`; if(m===12)selDate=`${y+1}-01-01`; paintPane(); };
-    
+
     // 点击日期查看详情
     $$('.cal-day[data-d]').forEach(el => {
       el.onclick = () => {
@@ -255,9 +329,9 @@
     detail.innerHTML = `
       <div style="font-weight:600;color:#6B4630;margin-bottom:4px;">${formatDate(ds)} 的记录：</div>
       ${recs.map(r=>{
-        const cat = CATS[r.cat]||CATS.gi;
+        const ci = catInfo(data, r.cat);
         return `<div class="food-item" style="padding:8px;margin-bottom:4px;">
-          <span class="chip sm" style="background:${cat.color};color:#fff;border:none;font-size:.76rem;">${cat.icon} ${r.status}</span>
+          <span class="chip sm" style="background:${ci.color};color:#fff;border:none;font-size:.76rem;">${ci.icon} ${r.status}</span>
           <span style="color:#E07B20;font-weight:600;margin-left:4px;">${r.score}/10</span>
           ${r.trace?`<p style="font-size:.82rem;color:#4A3628;margin-top:3px;">${esc(r.trace)}</p>`:''}
         </div>`;
@@ -269,7 +343,7 @@
     const y = parseInt(selDate.split('-')[0]);
     const data = get();
     const recs = (data.records||[]).filter(r => r.date.startsWith(y+'-'));
-    
+
     // 按月统计
     const monthStats = Array.from({length:12}, (_,i)=>({
       m:i+1, count:recs.filter(r=>parseInt(r.date.slice(5,7))===i+1).length,
@@ -302,7 +376,7 @@
         <b style="color:#6B4630;">📈 年度健康概况</b>
         <div style="margin-top:6px;font-size:.86rem;color:#4A3628;line-height:1.7;">
           全年共记录 <b style="color:#E07B20">${recs.length}</b> 条不适<br>
-          最常出问题的类别：<b>${renderTopCategory(recs)}</b><br>
+          最常出问题的类别：<b>${renderTopCategory(data, recs)}</b><br>
           平均不适感：<b style="color:#E07B20">${recs.length?(recs.reduce((a,r)=>a+r.score,0)/recs.length).toFixed(1):'-'}/10</b><br>
           最需关注的月份：<b>${monthStats.sort((a,b)=>b.count-a.count)[0]?.m||'-'}月</b>（${monthStats.sort((a,b)=>b.count-a.count)[0]?.count||0}条）
         </div>
@@ -313,9 +387,9 @@
     $('#yNext').onclick = () => { selDate = `${y+1}-01-01`; paintPane(); };
   }
 
-  function renderTopCategory(recs) {
+  function renderTopCategory(data, recs) {
     const freq = {};
-    recs.forEach(r => { const cn = CATS[r.cat]?CATS[r.cat].name:r.cat; freq[cn]=(freq[cn]||0)+1; });
+    recs.forEach(r => { const cn = catInfo(data, r.cat).name; freq[cn]=(freq[cn]||0)+1; });
     const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]);
     return sorted.length ? sorted[0][0] : '-';
   }
@@ -361,6 +435,16 @@
       '腿部麻木': '💡 建议：避免久坐久站、定时活动下肢、检查是否有腰椎问题。',
       '下肢水肿': '💡 建议：抬高双腿休息、减少盐分摄入、检查是否循环系统问题。持续请就医。',
       '屁股两侧痛': '💡 建议：换硬一些的座椅、定时起来活动、做臀部拉伸放松。',
+      // —— 女性问题 ——
+      '排卵期出血': '💡 建议：偶尔少量出血属常见，可观察；若频繁、量多或伴腹痛，建议妇科排查。',
+      '分泌物异常': '💡 建议：留意颜色/气味变化，保持私处清洁干燥、穿透气内裤。异常持续请就医。',
+      '痛经': '💡 建议：热敷小腹、避免生冷、适当休息。剧痛或影响生活请就医排查。',
+      '尿路感染': '⚠️ 建议：多喝水冲刷、不憋尿、注意卫生。尿急尿痛伴发热请及时就医。',
+      '乳房胀痛': '💡 建议：穿合身内衣、减少咖啡因、适当热敷。有硬块或血性溢液请就医。',
+      '卵巢疼痛': '⚠️ 建议：单侧剧痛伴恶心呕吐需警惕，及时就医排查。',
+      '月经过多': '💡 建议：记录用量与天数，长期过多易贫血，建议妇科就诊。',
+      '月经过少': '💡 建议：观察是否与压力/节食有关，持续异常建议就医。',
+      '经期时间异常': '💡 建议：记录周期长度，长期不规律建议妇科检查。',
       'default': '💡 建议：注意观察规律，找到诱因并尽量避免。规律作息、均衡饮食是基础。'
     };
 
@@ -379,9 +463,10 @@
     if (traces.length) {
       html += `<div><b style="font-size:.85rem;color:#5B8C6A;">🔍 近期溯源记录</b><div style="margin-top:4px;">`;
       traces.forEach(r => {
+        const ci = catInfo(data, r.cat);
         html += `<div style="padding:6px 8px;background:#fff;border-radius:6px;margin-bottom:3px;font-size:.8rem;">
-          <span style="color:#9A8874;">${r.date}</span> 
-          <span class="chip sm" style="font-size:.7rem;background:${CATS[r.cat]?CATS[r.cat].color:'#999'};color:#fff;border:none;margin-left:4px;">${r.status}</span>
+          <span style="color:#9A8874;">${r.date}</span>
+          <span class="chip sm" style="font-size:.7rem;background:${ci.color};color:#fff;border:none;margin-left:4px;">${r.status}</span>
           <p style="color:#4A3628;margin-top:2px;">${esc(r.trace)}</p>
         </div>`;
       });

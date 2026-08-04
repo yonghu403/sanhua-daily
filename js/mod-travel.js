@@ -5,6 +5,8 @@
   // 缩放/平移状态（仅中国地图用）
   let z = { s:1, tx:0, ty:0 };
   let moved = false;
+  // 时间轴年份筛选（null = 全部）
+  let tlYear = null;
 
   const REGION_VIEWS = {
     china:  { name: '中国', cx: 105, cy: 36, s: 1 },
@@ -663,7 +665,17 @@
 
       <!-- 时间轴：只用它来体现足迹 -->
       <div style="margin-top:16px;">
-        <b style="font-size:.9rem">🕒 足迹时间轴</b>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+          <b style="font-size:.9rem">🕒 足迹时间轴</b>
+          ${(() => {
+            const allYears = [...new Set((data.cities||[]).map(c => (c.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
+            if (!allYears.length) return '';
+            return `<select id="tlYearFilter" style="padding:4px 8px;border:2px solid #E8D9BC;border-radius:6px;font-size:.82rem;background:#FFFBF5;color:#6B4630;">
+              <option value="">全部年份</option>
+              ${allYears.map(y => `<option value="${y}" ${tlYear===y?'selected':''}>${y} 年</option>`).join('')}
+            </select>`;
+          })()}
+        </div>
         <div id="timeline" style="margin-top:8px;">
           ${renderTimeline(data, curRegion)}
         </div>
@@ -677,17 +689,12 @@
       btn.onclick = () => { curRegion = btn.dataset.r; paint(); };
     });
     $('#addCityBtn').onclick = () => showCityDialog(null);
-    $$('#timeline .tl-item').forEach(el => {
-      el.onclick = () => showCityDetail(el.dataset.id);
-    });
-    $$('#timeline .tl-photo-img').forEach(el => {
-      el.onclick = (e) => {
-        e.stopPropagation();
-        const id = el.closest('.tl-item').dataset.id;
-        const city = (get().cities||[]).find(c => c.id === id);
-        if (city && city.images && city.images.length) openLightbox(city.images, 0);
-      };
-    });
+    // 时间轴点击 & 图片灯箱
+    rebindTimeline();
+
+    // 年份筛选
+    const yf = $('#tlYearFilter');
+    if (yf) yf.onchange = () => { tlYear = yf.value || null; $('#timeline').innerHTML = renderTimeline(get(), curRegion); rebindTimeline(); };
 
     // 搜索定位（中国）
     if (isCN) {
@@ -710,10 +717,11 @@
 
   /* 时间轴：日记式 —— 左侧纵向时间轴(日期+地点)，右侧卡片(分类前15字+图片)，右下「走进故事」 */
   function renderTimeline(data, region) {
-    const items = (data.cities||[])
-      .filter(c => c.region === region)
-      .slice()
-      .sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    let items = (data.cities||[])
+      .filter(c => c.region === region);
+    // 年份筛选
+    if (tlYear) items = items.filter(c => (c.date||'').startsWith(tlYear));
+    items = items.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
     if (!items.length) return '<p style="color:#9A8874;font-size:.82rem;margin-top:6px;">还没有足迹，点地图或「＋ 添加足迹」记录第一站吧～</p>';
     return `<div class="tl-diary">` + items.map(c => {
       const cats = CAT_DEFS.map(([ic,k,label]) => c[k] ? `
@@ -738,6 +746,21 @@
         </div>
       </div>`;
     }).join('') + `</div>`;
+  }
+
+  /* 时间轴点击事件重新绑定（年份筛选切换后调用） */
+  function rebindTimeline() {
+    $$('#timeline .tl-item').forEach(el => {
+      el.onclick = () => showCityDetail(el.dataset.id);
+    });
+    $$('#timeline .tl-photo-img').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.closest('.tl-item').dataset.id;
+        const city = (get().cities||[]).find(c => c.id === id);
+        if (city && city.images && city.images.length) openLightbox(city.images, 0);
+      };
+    });
   }
 
   /* 图片灯箱：点击任意图片全屏查看（支持左右切换 / 关闭） */
