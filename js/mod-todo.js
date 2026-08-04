@@ -576,6 +576,8 @@
         <div class="hint" style="margin-top:7px;">日记、图片都存在你自己的手机里，刷新和关机都不会丢。删除只由你决定 🐾</div>
       </div>`;
 
+    $$('#diaryEdit img', p).forEach(im => im.classList.add('clickable-img'));
+
     $$('#moodPick .mood-opt').forEach(o => o.onclick = () => {
       const cur = getDiary(viewDate) || {};
       cur.mood = cur.mood === o.dataset.m ? '' : o.dataset.m;
@@ -610,7 +612,7 @@
       } catch (err) { }
     });
     $('#addImg').onclick = async () => {
-      const img = await pickImage(800);
+      const img = await pickImage(1400);
       if (!img) return;
       const ed = $('#diaryEdit'); ed.focus();
       document.execCommand('insertHTML', false, `<img src="${img}">`);

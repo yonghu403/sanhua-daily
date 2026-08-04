@@ -750,6 +750,9 @@ select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 .lightbox .lb-prev{left:10px;}
 .lightbox .lb-next{right:10px;}
 .lightbox .lb-count{position:absolute;bottom:18px;left:0;right:0;text-align:center;color:#fff;font-size:.85rem;opacity:.85;}
+/* 可点击查看大图的图片：放大镜光标，提示用户可点 */
+.clickable-img{cursor:zoom-in;}
+.clickable-img:active{opacity:.85;}
 /* 缩略图可点击放大 */
 .tl-photo-img,.city-img{cursor:zoom-in;}
 

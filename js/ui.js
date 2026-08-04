@@ -140,7 +140,7 @@
             cv.width = w; cv.height = h;
             cv.getContext('2d').drawImage(img, 0, 0, w, h);
             let out;
-            try { out = cv.toDataURL('image/jpeg', 0.78); } catch (e) { out = fr.result; }
+            try { out = cv.toDataURL('image/jpeg', 0.88); } catch (e) { out = fr.result; }
             resolve(out);
           };
           img.onerror = () => resolve(fr.result);
@@ -152,6 +152,45 @@
       inp.click();
     });
   }
+
+  /* ---------- 图片灯箱：点击查看大图（全站通用） ---------- */
+  function openLightbox(list, start) {
+    if (!list || !list.length) return;
+    const lb = document.getElementById('lightbox') || (() => {
+      const d = document.createElement('div');
+      d.id = 'lightbox'; d.className = 'lightbox'; d.style.display = 'none';
+      document.body.appendChild(d);
+      return d;
+    })();
+    let idx = start || 0;
+    function renderLb() {
+      lb.innerHTML = `
+        <button class="lb-close" aria-label="关闭">×</button>
+        ${list.length > 1 ? '<button class="lb-nav lb-prev" aria-label="上一张">‹</button><button class="lb-nav lb-next" aria-label="下一张">›</button>' : ''}
+        <img class="lb-img" src="${list[idx]}" alt="">
+        ${list.length > 1 ? '<div class="lb-count">' + (idx+1) + ' / ' + list.length + '</div>' : ''}`;
+      lb.querySelector('.lb-close').onclick = hide;
+      const prev = lb.querySelector('.lb-prev'), next = lb.querySelector('.lb-next');
+      if (prev) prev.onclick = (e) => { e.stopPropagation(); idx = (idx - 1 + list.length) % list.length; renderLb(); };
+      if (next) next.onclick = (e) => { e.stopPropagation(); idx = (idx + 1) % list.length; renderLb(); };
+      lb.querySelector('.lb-img').onclick = (e) => e.stopPropagation();
+    }
+    function hide() { lb.style.display = 'none'; lb.innerHTML = ''; document.removeEventListener('keydown', onKey); }
+    function onKey(e) {
+      if (e.key === 'Escape') hide();
+      else if (list.length > 1 && e.key === 'ArrowLeft') { idx = (idx - 1 + list.length) % list.length; renderLb(); }
+      else if (list.length > 1 && e.key === 'ArrowRight') { idx = (idx + 1) % list.length; renderLb(); }
+    }
+    lb.onclick = hide;
+    document.addEventListener('keydown', onKey);
+    renderLb();
+    lb.style.display = 'flex';
+  }
+  // 全局委托：任何带 .clickable-img 的图片点击即查看大图（单图）
+  document.addEventListener('click', (e) => {
+    const im = e.target.closest && e.target.closest('img.clickable-img');
+    if (im) { e.stopPropagation(); openLightbox([im.src]); }
+  });
 
   function pickFile(accept) {
     return new Promise((resolve) => {
@@ -196,7 +235,8 @@
 
   const money = (n) => (Number(n) || 0).toFixed(2);
 
-  global.UI = { $, $$, esc, safeHTML, uid, pad, ymd, today, parseYMD, wdOf, WD, monthMatrix, weekOf, nowHM, niceDate, toast, modal, confirmBox, promptBox, pickImage, pickFile, download, longPress, money };
+  global.UI = { $, $$, esc, safeHTML, uid, pad, ymd, today, parseYMD, wdOf, WD, monthMatrix, weekOf, nowHM, niceDate, toast, modal, confirmBox, promptBox, pickImage, pickFile, download, longPress, money, openLightbox };
+  global.openLightbox = openLightbox;
 
   /* 同时挂成真正的全局变量，方便各模块直接裸用 $ / $$ / esc / today 等
      （老模块若用 const $ = UI.$ 本地别名，会覆盖全局，互不影响） */

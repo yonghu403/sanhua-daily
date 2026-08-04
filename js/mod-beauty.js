@@ -200,7 +200,7 @@
         <div class="lbl" style="font-size:12px;">${esc(c)}</div>
         ${byCat[c].map(p => `
           <div class="rec-item" data-id="${p.id}">
-            <div class="rec-ico">${p.img ? `<img src="${p.img}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">` : '🧴'}</div>
+            <div class="rec-ico">${p.img ? `<img src="${p.img}" class="clickable-img" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">` : '🧴'}</div>
             <div class="rec-main"><div class="t">${esc(p.name)}</div>
             <div class="s">${'⭐'.repeat(p.rate || 0)}${p.note ? ' · ' + esc(p.note) : ''}</div></div>
             <span class="chip sm">${p.repurchase ? '会回购' : '在用'}</span>
@@ -242,7 +242,7 @@
       $$('#pcGrp .chip', b).forEach(c => c.onclick = () => { cat = c.dataset.c; $$('#pcGrp .chip', b).forEach(x => x.classList.toggle('on', x === c)); });
       $$('#rateGrp .chip', b).forEach(c => c.onclick = () => { rate = Number(c.dataset.r); $$('#rateGrp .chip', b).forEach(x => x.classList.toggle('on', x === c)); });
       $('#pRe', b).onclick = () => { re = !re; $('#pRe', b).classList.toggle('on', re); };
-      $('#pImg', b).onclick = async () => { const i2 = await pickImage(400); if (i2) { img = i2; drawImg(); } };
+      $('#pImg', b).onclick = async () => { const i2 = await pickImage(1200); if (i2) { img = i2; drawImg(); } };
       $('#pSave', b).onclick = () => {
         const n = $('#pName', b).value.trim();
         if (!n) { toast('产品名写一下～'); return; }
@@ -279,7 +279,7 @@
           <span class="chip sm ${e.fav ? 'on' : ''}" data-act="fav">⭐</span>
           <span class="chip sm" data-act="del">×</span>
         </div>
-        ${e.img ? `<img src="${e.img}" style="width:100%;border-radius:11px;margin-top:7px;">` : ''}
+        ${e.img ? `<img src="${e.img}" class="clickable-img" style="width:100%;border-radius:11px;margin-top:7px;">` : ''}
         <div style="font-size:12.6px;line-height:1.75;margin-top:6px;white-space:pre-wrap;">${esc(e.text || '')}</div>
       </div>`).join('');
     box.onclick = (e) => {
@@ -306,7 +306,7 @@
       let img = e.img || '';
       const dr = () => { $('#eImgBox', b).innerHTML = img ? `<img src="${img}" style="width:48px;height:48px;object-fit:cover;border-radius:10px;">` : ''; };
       dr();
-      $('#eImg', b).onclick = async () => { const i2 = await pickImage(800); if (i2) { img = i2; dr(); } };
+      $('#eImg', b).onclick = async () => { const i2 = await pickImage(1400); if (i2) { img = i2; dr(); } };
       $('#eSave', b).onclick = () => {
         e.title = $('#eTitle', b).value.trim();
         e.text = $('#eText', b).value;
@@ -437,7 +437,7 @@
     }
     g.innerHTML = list.map(n => `
       <div class="pcard" data-id="${n.id}">
-        ${n.img ? `<img class="pimg" src="${n.img}">` : `<div class="pimg ph">${Icons.lipstick()}</div>`}
+        ${n.img ? `<img class="pimg clickable-img" src="${n.img}">` : `<div class="pimg ph">${Icons.lipstick()}</div>`}
         <div class="pb"><div class="pt">${esc(n.title || '风格便签')}</div>
         <div class="ps">${esc((n.text || '').slice(0, 36))}</div></div>
       </div>`).join('');
@@ -460,7 +460,7 @@
       let img = n.img || '';
       const dr = () => { $('#mImgBox', b).innerHTML = img ? `<img src="${img}" style="width:52px;height:52px;object-fit:cover;border-radius:10px;">` : ''; };
       dr();
-      $('#mImg', b).onclick = async () => { const i2 = await pickImage(900); if (i2) { img = i2; dr(); } };
+      $('#mImg', b).onclick = async () => { const i2 = await pickImage(1400); if (i2) { img = i2; dr(); } };
       $('#mSave', b).onclick = () => {
         n.title = $('#mTitle', b).value.trim(); n.text = $('#mText', b).value; n.img = img;
         if (!n.title && !n.text && !img) { toast('写点什么呀'); return; }

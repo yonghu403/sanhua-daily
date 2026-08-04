@@ -280,7 +280,7 @@
       const poster = it.img || (navigator.onLine && it.online ? it.online : base);
       return `<div class="mcard" data-id="${it.id}">
         <div class="mimg-wrap">
-          <img class="mimg" src="${poster}" alt="" data-base="${base}" onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src=this.dataset.base;}">
+          <img class="mimg clickable-img" src="${poster}" alt="" data-base="${base}" onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src=this.dataset.base;}">
         </div>
         <div class="mt">${esc(it.title)}</div>
         <div class="row" style="margin:3px 9px 0;gap:5px;flex-wrap:wrap;">
@@ -327,7 +327,7 @@
       let img = '';
       $('#wNo', b).onclick = () => modal.close();
       $('#wImg', b).onclick = async () => {
-        const im = await pickImage(700);
+        const im = await pickImage(1200);
         if (im) { img = im; $('#wImgPrev', b).innerHTML = `<img src="${img}" style="width:100%;border-radius:10px;">`; }
       };
       $('#wYes', b).onclick = () => {
@@ -390,7 +390,7 @@
         <div class="rec-main">
           <div class="t">${esc(rv.title)} ${stars(rv.rating || 0)}</div>
           <div class="s">${esc(rv.text || '')}</div>
-          ${rv.imgs && rv.imgs.length ? `<div class="rthumbs">${rv.imgs.map(i => `<img src="${i}">`).join('')}</div>` : ''}
+          ${rv.imgs && rv.imgs.length ? `<div class="rthumbs">${rv.imgs.map(i => `<img class="rthumb-img" src="${i}">`).join('')}</div>` : ''}
           <div class="hint" style="margin-top:2px;">${niceDate(rv.date)}${rv.type ? ' · ' + esc(rv.type) : ''}</div>
         </div>
         <span class="chip sm" data-act="del">×</span>
@@ -401,6 +401,12 @@
         if (await confirmBox('删除这条点评？', '删除')) { setReviews(getReviews().filter(x => x.id !== it.dataset.id)); drawReviews($('#revList')); }
       }
     };
+    $$('#revList .rec-item').forEach(card => {
+      const rv2 = reviews.find(r => r.id === card.dataset.id);
+      if (rv2 && rv2.imgs && rv2.imgs.length) {
+        $$('.rthumb-img', card).forEach((im, i) => { im.onclick = (e) => { e.stopPropagation(); openLightbox(rv2.imgs.slice(), i); }; });
+      }
+    });
   }
 
   function addReview() {
@@ -427,7 +433,7 @@
       $('#vNo', b).onclick = () => modal.close();
       $('#vImg', b).onclick = async () => {
         if (imgs.length >= 3) { toast('最多 3 张啦'); return; }
-        const im = await pickImage(800);
+        const im = await pickImage(1400);
         if (im) { imgs.push(im); $('#vImgPrev', b).innerHTML = imgs.map((i, idx) => `<span style="position:relative;display:inline-block;"><img src="${i}" style="width:46px;height:46px;object-fit:cover;border-radius:9px;border:1.4px solid var(--line);"><span data-x="${idx}" style="position:absolute;top:-5px;right:-5px;background:var(--brown);color:#fff;border-radius:50%;width:16px;height:16px;line-height:16px;text-align:center;font-size:11px;">×</span></span>`).join('');
           $$('#vImgPrev [data-x]', b).forEach(x => x.onclick = () => { imgs.splice(+x.dataset.x, 1); $('#vImgPrev', b).innerHTML = imgs.map((i, idx) => `<span style="position:relative;display:inline-block;"><img src="${i}" style="width:46px;height:46px;object-fit:cover;border-radius:9px;border:1.4px solid var(--line);"><span data-x="${idx}" style="position:absolute;top:-5px;right:-5px;background:var(--brown);color:#fff;border-radius:50%;width:16px;height:16px;line-height:16px;text-align:center;font-size:11px;">×</span></span>`).join(''); });
         }

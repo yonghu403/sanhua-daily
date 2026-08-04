@@ -247,7 +247,7 @@
     g.innerHTML = list.map(n => `
       <div class="pcard" data-id="${n.id}">
         ${n.imgs && n.imgs[0]
-        ? `<img class="pimg" src="${n.imgs[0]}">`
+        ? `<img class="pimg clickable-img" src="${n.imgs[0]}">`
         : `<div class="pimg ph">${Icons.shirt()}</div>`}
         <div class="pb">
           <div class="pt">${esc(n.title || '未命名')}</div>
@@ -265,7 +265,7 @@
   function viewNote(id) {
     const n = getNotes().find(x => x.id === id); if (!n) return;
     modal.open(n.title || '存档', `
-      ${(n.imgs || []).map(s => `<img src="${s}" style="width:100%;border-radius:14px;margin-bottom:8px;">`).join('')}
+      ${(n.imgs || []).map(s => `<img class="onote-img" src="${s}" style="width:100%;border-radius:14px;margin-bottom:8px;">`).join('')}
       <div style="font-size:13.5px;line-height:1.8;white-space:pre-wrap;">${esc(n.text || '')}</div>
       <div class="chip-group" style="margin-top:9px;">
         ${n.col ? `<span class="chip sm">📁 ${esc(n.col)}</span>` : ''}
@@ -277,6 +277,7 @@
         <button class="btn grow" id="nEdit">编辑</button>
       </div>`, (b) => {
       $('#nEdit', b).onclick = () => { modal.close(); editNote(id); };
+      $$('.onote-img', b).forEach((im, i) => { im.onclick = (e) => { e.stopPropagation(); openLightbox((n.imgs || []).slice(), i); }; });
       $('#nDel', b).onclick = async () => {
         if (await confirmBox('删除这条存档？')) { setNotes(getNotes().filter(x => x.id !== id)); modal.close(); drawCols(); drawNotes(); toast('已删除'); }
       };
@@ -309,7 +310,7 @@
         $$('#imgBox span[data-i]', b).forEach(x => x.onclick = () => { imgs.splice(Number(x.dataset.i), 1); drawImgs(); });
       };
       drawImgs();
-      $('#nAddImg', b).onclick = async () => { const im = await pickImage(900); if (im) { imgs.push(im); drawImgs(); } };
+      $('#nAddImg', b).onclick = async () => { const im = await pickImage(1400); if (im) { imgs.push(im); drawImgs(); } };
       $('#nSave', b).onclick = () => {
         const t = $('#nTitle', b).value.trim();
         if (!t && !imgs.length) { toast('至少写个标题或加张图'); return; }

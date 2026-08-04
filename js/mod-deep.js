@@ -55,7 +55,7 @@
       const cnt = { text: 0, image: 0, table: 0, note: 0 };
       (p.blocks || []).forEach(b => cnt[b.type] = (cnt[b.type] || 0) + 1);
       return `<div class="rec-item" data-id="${p.id}">
-        <div class="rec-ico" style="width:44px;height:44px;flex:0 0 44px;">${p.cover ? `<img src="${p.cover}" style="width:100%;height:100%;object-fit:cover;border-radius:11px;">` : '🌍'}</div>
+        <div class="rec-ico" style="width:44px;height:44px;flex:0 0 44px;">${p.cover ? `<img src="${p.cover}" class="clickable-img" style="width:100%;height:100%;object-fit:cover;border-radius:11px;">` : '🌍'}</div>
         <div class="rec-main"><div class="t">${esc(p.title)}</div>
         <div class="s">${esc(txt || '（还没写内容）')}</div>
         <div class="hint" style="margin-top:2px;">${new Date(p.updated || p.ts).toLocaleDateString('zh-CN')} · ${cnt.image ? cnt.image + '图 ' : ''}${cnt.table ? cnt.table + '表 ' : ''}${cnt.note ? cnt.note + '便签' : ''}</div></div>
@@ -105,7 +105,7 @@
           <div style="margin:7px 0 3px;font-weight:800;font-size:12.5px;color:var(--brown2);">${m} 月</div>
           ${byYear[y][m].map((p) => `
             <div class="rec-item" data-id="${p.id}">
-              <div class="rec-ico" style="width:38px;height:38px;flex:0 0 38px;">${p.cover ? `<img src="${p.cover}" style="width:100%;height:100%;object-fit:cover;border-radius:11px;">` : '🌍'}</div>
+              <div class="rec-ico" style="width:38px;height:38px;flex:0 0 38px;">${p.cover ? `<img src="${p.cover}" class="clickable-img" style="width:100%;height:100%;object-fit:cover;border-radius:11px;">` : '🌍'}</div>
               <div class="rec-main">
                 <div class="t">${esc(p.title)}</div>
                 <div class="s">${new Date(p.updated || p.ts).toLocaleDateString('zh-CN')}</div>
@@ -133,7 +133,7 @@
           <button class="btn ghost sm" id="setCover">封面</button>
           <button class="btn sm" id="savePage">保存</button>
         </div>
-        ${p.cover ? `<img src="${p.cover}" style="width:100%;max-height:170px;object-fit:cover;border-radius:14px;margin-bottom:9px;">` : ''}
+        ${p.cover ? `<img src="${p.cover}" class="clickable-img" style="width:100%;max-height:170px;object-fit:cover;border-radius:14px;margin-bottom:9px;">` : ''}
         <input class="field" id="pgTitle" value="${esc(p.title)}" style="font-size:16px;font-weight:800;">
         <div class="hint" style="margin-top:5px;">创建于 ${new Date(p.ts).toLocaleDateString('zh-CN')} · 最后编辑 ${new Date(p.updated || p.ts).toLocaleString('zh-CN')}</div>
       </div>
@@ -153,7 +153,7 @@
     $('#back').onclick = () => { savePage(true); view = 'list'; renderList(root); };
     $('#savePage').onclick = () => { savePage(); toast('已保存 🌍'); };
     $('#setCover').onclick = async () => {
-      const im = await pickImage(1000); if (!im) return;
+      const im = await pickImage(1600); if (!im) return;
       const arr = getPages(); const q = arr.find(x => x.id === curId);
       q.cover = im; q.updated = Date.now(); setPages(arr); renderPage(root);
     };
@@ -189,7 +189,7 @@
     if (type === 'image') b.src = '';
     p.blocks.push(b); p.updated = Date.now(); setPages(arr);
     if (type === 'image') {
-      pickImage(1000).then(im => {
+      pickImage(1600).then(im => {
         const a2 = getPages(); const p2 = a2.find(x => x.id === curId);
         const b2 = p2.blocks.find(x => x.id === b.id);
         if (im) { b2.src = im; } else { p2.blocks = p2.blocks.filter(x => x.id !== b.id); }
@@ -216,7 +216,7 @@
           <div class="row wrap" style="margin-top:4px;">${NOTE_COLORS.map(c => `<span data-color="${c}" style="width:18px;height:18px;border-radius:50%;background:${c};border:1.5px solid rgba(107,70,48,.3);"></span>`).join('')}</div>
         </div>`;
       if (b.type === 'image') body = `
-        <img src="${b.src}" style="width:100%;border-radius:12px;display:block;">
+        <img src="${b.src}" class="clickable-img" style="width:100%;border-radius:12px;display:block;">
         <input class="field" value="${esc(b.cap || '')}" placeholder="图注（可选）" style="margin-top:7px;font-size:12px;">`;
       if (b.type === 'table') body = `
         <div style="overflow-x:auto;">

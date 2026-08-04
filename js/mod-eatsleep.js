@@ -435,7 +435,7 @@
     /* 图片选择 */
     let favImg = '';
     $('#favImgBtn').onclick = async () => {
-      const img = await pickImage(500);
+      const img = await pickImage(1200);
       if (img) { favImg = img; $('#favImgHint').textContent = '已选 1 张图'; }
     };
 
@@ -473,7 +473,7 @@
     }
     box.innerHTML = favs.map(f => `
       <div class="food-item" data-fid="${f.id}">
-        ${f.img ? `<img src="${f.img}" class="food-ico" style="padding:0;overflow:hidden;border-radius:11px;object-fit:cover;" alt="${esc(f.name)}"/>` : `<div class="food-ico">${f.ico}</div>`}
+        ${f.img ? `<img src="${f.img}" class="food-ico clickable-img" style="padding:0;overflow:hidden;border-radius:11px;object-fit:cover;" alt="${esc(f.name)}">` : `<div class="food-ico">${f.ico}</div>`}
         <div class="grow">
           <div style="font-size:13px;font-weight:700;">${esc(f.name)}</div>
           <div class="hint"><span class="chip sm" style="margin-right:4px;">${(FAV_CAT_MAP[f.cat]||{}).name || f.cat}</span>${esc(f.note)}</div>
