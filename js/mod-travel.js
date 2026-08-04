@@ -314,17 +314,17 @@
           #cnMap .city-marker{cursor:pointer;}
         </style>
         <g id="mapZoom">
-          <path d="${R.base}" fill="#FBF1DD" stroke="#6B4630" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+          <path d="${R.base}" fill="#FBF1DD" stroke="#B89B7A" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
 
       // 各省彩色块 + 省名
       provs.forEach(pr => {
-        svg += `<path class="prov" d="${pr.d}" fill="${R.RC[pr.r]||'#E8D9BC'}" stroke="#8A6A4A" stroke-width="0.8" vector-effect="non-scaling-stroke"/>`;
-        svg += `<text class="prov-lbl" data-base="11" x="${pr.x}" y="${pr.y}" fill="#5A3D28" text-anchor="middle" pointer-events="none">${esc(pr.n)}</text>`;
+        svg += `<path class="prov" d="${pr.d}" fill="${R.RC[pr.r]||'#E8D9BC'}" stroke="#B89B7A" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+        svg += `<text class="prov-lbl" data-base="18" x="${pr.x}" y="${pr.y}" fill="#5A3D28" text-anchor="middle" pointer-events="none" font-weight="600">${esc(pr.n)}</text>`;
       });
       // 城市点（放大后显示）
       provs.forEach(pr => (pr.cities||[]).forEach(c => {
         svg += `<circle class="clbl city-dot" cx="${c.x}" cy="${c.y-3}" r="2.6" fill="#FF8C5A"/>`;
-        svg += `<text class="clbl" data-base="9" x="${c.x}" y="${c.y+12}" fill="#5A3D28" text-anchor="middle">${esc(c.n)}</text>`;
+        svg += `<text class="clbl" data-base="14" x="${c.x}" y="${c.y+12}" fill="#5A3D28" text-anchor="middle" font-weight="500">${esc(c.n)}</text>`;
       }));
 
       // 足迹标记（猫爪印）
@@ -339,7 +339,7 @@
             <ellipse cx="-11" cy="11" rx="3.3" ry="4.3" fill="#FF8C5A" opacity=".75"/>
             <ellipse cx="0" cy="13" rx="3.3" ry="4.3" fill="#FF8C5A" opacity=".75"/>
             <ellipse cx="11" cy="11" rx="3.3" ry="4.3" fill="#FF8C5A" opacity=".75"/>
-            <text class="paw-name" data-base="11" y="-19" fill="#6B4630" text-anchor="middle" font-weight="bold" style="paint-order:stroke;stroke:#fff;stroke-width:2.5px;">${esc(city.name)}</text>
+            <text class="paw-name" data-base="17" y="-21" fill="#6B4630" text-anchor="middle" font-weight="bold" style="paint-order:stroke;stroke:#fff;stroke-width:3px;">${esc(city.name)}</text>
           </g>`;
         }
       });
@@ -356,13 +356,13 @@
       <style>
         .ctr{transition:opacity .15s,fill-opacity .15s;cursor:pointer;}
         .ctr:hover{fill-opacity:.7;}
-        .cnam{font-family:sans-serif;font-size:7px;fill:#4A3628;pointer-events:none;text-anchor:middle;font-weight:500;}
-        .csub{font-family:sans-serif;font-size:5px;fill:#8A7A64;pointer-events:none;text-anchor:middle;}
+        .cnam{font-family:sans-serif;font-size:13px;fill:#4A3628;pointer-events:none;text-anchor:middle;font-weight:600;}
+        .csub{font-family:sans-serif;font-size:9px;fill:#8A7A64;pointer-events:none;text-anchor:middle;}
       </style>`;
 
     if (cmap && cmap.countries) {
       cmap.countries.forEach(ctry => {
-        svg += `<path class="ctr" d="${ctry.p}" fill="${ctry.c}" stroke="#9A8874" stroke-width="0.7" fill-rule="evenodd">
+        svg += `<path class="ctr" d="${ctry.p}" fill="${ctry.c}" stroke="#B8A890" stroke-width="1" fill-rule="evenodd" stroke-linejoin="round">
           <title>${ctry.n} (${ctry.e})</title>
         </path>`;
         // 计算简单中心放标签
@@ -374,9 +374,9 @@
       // 世界视图用大洲轮廓
       const wmap = CONTINENT_MAPS.world;
       if (wmap) wmap.countries.forEach(ctry => {
-        svg += `<path class="ctr" d="${ctry.p}" fill="${ctry.c}" stroke="#9A8874" stroke-width="1"/>`;
+        svg += `<path class="ctr" d="${ctry.p}" fill="${ctry.c}" stroke="#B8A890" stroke-width="1.2"/>`;
         const ctr = simpleCenter(ctry.p);
-        svg += `<text x="${ctr.x}" y="${ctr.y}" class="cnam" font-size="10">${ctry.n}</text>`;
+        svg += `<text x="${ctr.x}" y="${ctr.y}" class="cnam" font-size="15">${ctry.n}</text>`;
       });
     }
 
@@ -402,7 +402,7 @@
     container.onclick = (e) => {
       const marker = e.target.closest('.city-marker');
       if (marker) { showCityDetail(marker.dataset.id); return; }
-      showAddCity();
+      showCityDialog(null);
     };
   }
 
@@ -484,7 +484,7 @@
       if (moved) return;
       const marker = e.target.closest('.city-marker');
       if (marker) { showCityDetail(marker.dataset.id); return; }
-      showAddCity();
+      showCityDialog(null);
     });
 
     const zin = document.getElementById('mapZoomIn');
@@ -592,9 +592,11 @@
     };
     $('#ciCancel').onclick = () => $('#cityDlg').remove();
     if (isEdit) $('#ciDel').onclick = () => {
-      if (!confirmBox('删除这个足迹？')) return;
-      data.cities = data.cities.filter(c => c.id !== existing.id);
-      set(data); $('#cityDlg').remove(); paint(); toast('已删除');
+      confirmBox('删除这个足迹？', '删除').then((ok) => {
+        if (!ok) return;
+        data.cities = data.cities.filter(c => c.id !== existing.id);
+        set(data); $('#cityDlg').remove(); paint(); toast('已删除');
+      });
     };
   }
 

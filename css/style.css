@@ -757,7 +757,8 @@ select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 .tl-photo-img,.city-img{cursor:zoom-in;}
 
 /* 健康管理：自定义分类/分状态的删除小标 */
-.cat-x{position:absolute;top:-7px;right:-7px;width:16px;height:16px;line-height:14px;text-align:center;background:#CC6666;color:#fff;border-radius:50%;font-size:11px;cursor:pointer;z-index:2;box-shadow:0 1px 2px rgba(0,0,0,.3);}
-.st-x{display:inline-block;margin-left:3px;color:inherit;opacity:.6;font-weight:700;cursor:pointer;}
-.st-x:hover{opacity:1;}
+.cat-x{position:absolute;top:-8px;right:-8px;width:22px;height:22px;line-height:20px;text-align:center;background:#CC6666;color:#fff;border:2px solid #fff;border-radius:50%;font-size:13px;font-weight:700;cursor:pointer;z-index:5;box-shadow:0 1px 3px rgba(0,0,0,.35);user-select:none;-webkit-tap-highlight-color:transparent;}
+.cat-x:active{transform:scale(.88);background:#B85252;}
+.st-x{display:inline-block;margin-left:4px;padding:0 4px;color:inherit;opacity:.65;font-weight:700;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;}
+.st-x:hover,.st-x:active{opacity:1;}
 

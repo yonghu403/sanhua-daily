@@ -74,7 +74,7 @@
           const on = curCat===k;
           const style = on ? `background:${darken(v.color,0.18)};color:#fff;border:none;box-shadow:inset 0 2px 6px rgba(0,0,0,.28),0 2px 4px rgba(0,0,0,.12);font-weight:700;` : `background:#FFFDF8;color:${v.color};border:1.5px solid ${v.color};`;
           const isCustom = !!((data.customCats||{})[k]);
-          return `<span style="position:relative;display:inline-flex;">
+          return `<span class="cat-wrap" style="position:relative;display:inline-flex;${isCustom?'margin:6px 6px 0 0;':''}">
             <button class="chip ${on?'on':''}" data-cat="${k}" style="${style}">${v.name}</button>
             ${isCustom?`<span class="cat-x" data-del-cat="${k}" title="删除该分类">×</span>`:''}
           </span>`;
@@ -92,13 +92,33 @@
     $$('#hdCats [data-cat]').forEach(btn => {
       btn.onclick = () => { curCat = btn.dataset.cat; render(root); };
     });
+    // 删除自定义主状态（× 号在 #hdCats 内，必须在这里绑定，不能依赖 #hdPane 的委托）
+    $$('#hdCats [data-del-cat]').forEach(x => {
+      x.onclick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const k = x.dataset.delCat;
+        const nm = catInfo(get(), k).name;
+        confirmBox('删除分类「'+nm+'」？该分类下已记录的历史数据会保留，只是不再显示此分类。', '删除').then((ok) => {
+          if (!ok) return;
+          const d = get();
+          d.customCats = d.customCats || {};
+          delete d.customCats[k];
+          if (d.customs) delete d.customs[k];
+          if (curCat === k) curCat = 'gi';
+          set(d);
+          render(rootEl);
+          toast('已删除分类「'+nm+'」');
+        });
+      };
+    });
     $('#hdAddCat').onclick = () => addCategory(data);
 
     paintPane();
   }
 
   function addCategory(data) {
-    UI.promptBox('给新分类起个名字', '如：皮肤问题、睡眠问题、过敏...', (name) => {
+    UI.promptBox('给新分类起个名字', '', '如：皮肤问题、睡眠问题、过敏...').then((name) => {
       if (!name || !name.trim()) return;
       const key = 'c_' + uid();
       data.customCats = data.customCats || {};
@@ -195,7 +215,7 @@
     });
     // 自定义分状态
     $('#hdAddCustom').onclick = () => {
-      UI.promptBox('自定义分状态', '输入新状态名称（如：偏头痛、过敏等）：', (val) => {
+      UI.promptBox('自定义分状态', '', '输入新状态名称（如：偏头痛、过敏等）：').then((val) => {
         if (!val || !val.trim()) return;
         const v = val.trim();
         data.customs = data.customs || {};
@@ -234,39 +254,31 @@
       if (t.dataset.act === 'delRec') {
         const i = +t.dataset.i;
         const recs = (get().records||[]).filter(r => r.date === selDate && r.cat === curCat);
-        if (confirmBox('删除这条记录？')) {
-          const delId = recs[i].id;
+        if (!recs[i]) return;
+        const delId = recs[i].id;
+        confirmBox('删除这条记录？', '删除').then((ok) => {
+          if (!ok) return;
           const d = get();
           d.records = (d.records||[]).filter(r => r.id !== delId);
           set(d);
           paintPane();
-        }
+        });
         return;
       }
       // 删除自定义分状态
       if (t.dataset.delCustom) {
         const v = t.dataset.delCustom;
-        if (!confirmBox('删除分状态「'+v+'」？已记录的历史不会消失。')) return;
-        const d = get();
-        d.customs = d.customs || {};
-        d.customs[curCat] = (d.customs[curCat]||[]).filter(x => x !== v);
-        set(d);
-        paintPane();
+        confirmBox('删除分状态「'+v+'」？已记录的历史不会消失。', '删除').then((ok) => {
+          if (!ok) return;
+          const d = get();
+          d.customs = d.customs || {};
+          d.customs[curCat] = (d.customs[curCat]||[]).filter(x => x !== v);
+          set(d);
+          paintPane();
+        });
         return;
       }
-      // 删除自定义主状态
-      if (t.dataset.delCat) {
-        const k = t.dataset.delCat;
-        if (!confirmBox('删除该分类「'+catInfo(get(),k).name+'」？该分类下已记录的历史数据会保留，只是不再显示此分类。')) return;
-        const d = get();
-        d.customCats = d.customCats || {};
-        delete d.customCats[k];
-        if (d.customs) delete d.customs[k];
-        if (curCat === k) curCat = 'gi';
-        set(d);
-        render(rootEl);
-        return;
-      }
+      // 注：删除自定义主状态的 × 在 #hdCats 内（非 #hdPane 子节点），已在 render() 中单独绑定
     };
   }
 
