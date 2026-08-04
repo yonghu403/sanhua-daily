@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "dev.pages.sanhua_daily.twa",
+    "sha256_cert_fingerprints": ["27:C2:59:1D:AE:6E:14:27:FC:F4:31:6D:14:C7:18:10:4C:B3:B8:5B:68:6D:31:06:B7:0B:14:C1:70:62:11:C0"]
+  }
+}]
