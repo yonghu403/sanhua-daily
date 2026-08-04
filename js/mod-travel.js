@@ -231,24 +231,31 @@
     return a.length > n ? a.slice(0, n).join('') + '…' : a.join('');
   }
 
-  /* 图片文件 → dataURL（压缩到合适尺寸，避免撑爆 IndexedDB） */
-  function fileToDataURL(file, maxW, cb) {
+  /* 图片压缩工具：按比例缩放到 maxW，质量 q */
+  function downscale(img, maxW, q) {
+    const w = img.width, h = img.height;
+    const scale = Math.min(1, maxW / w);
+    const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+    const cv = document.createElement('canvas');
+    cv.width = cw; cv.height = ch;
+    cv.getContext('2d').drawImage(img, 0, 0, cw, ch);
+    return cv.toDataURL('image/jpeg', q);
+  }
+  /* 上传一张图 → 同时产出高清版(full) 与缩略图(thumb) */
+  function processImage(file, cb) {
     if (!file || !/^image\//.test(file.type)) { cb(null); return; }
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const w = img.width, h = img.height;
-        const scale = Math.min(1, maxW / w);
-        const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
         try {
-          const cv = document.createElement('canvas');
-          cv.width = cw; cv.height = ch;
-          cv.getContext('2d').drawImage(img, 0, 0, cw, ch);
-          cb(cv.toDataURL('image/jpeg', 0.82));
-        } catch (_) { cb(reader.result); }
+          cb({
+            full: downscale(img, 2000, 0.88),   // 高清存档：清晰、体积可控
+            thumb: downscale(img, 600, 0.80)    // 列表缩略图：加载快
+          });
+        } catch (_) { cb({ full: reader.result, thumb: reader.result }); }
       };
-      img.onerror = () => cb(reader.result);
+      img.onerror = () => cb({ full: reader.result, thumb: reader.result });
       img.src = reader.result;
     };
     reader.onerror = () => cb(null);
@@ -536,15 +543,16 @@
     document.body.insertAdjacentHTML('beforeend', html);
 
     /* 图片上传：压缩 + 预览 + 删除 */
-    let curImgs = existing && existing.images ? existing.images.slice() : [];
+    let curFulls = existing && existing.images ? existing.images.slice() : [];
+    let curThumbs = existing && existing.thumbs && existing.thumbs.length ? existing.thumbs.slice() : (existing && existing.images ? existing.images.slice() : []);
     const imgPrev = $('#ciImgPrev');
     function renderImgPrev() {
       if (!imgPrev) return;
-      imgPrev.innerHTML = curImgs.map((src,i) =>
+      imgPrev.innerHTML = curThumbs.map((src,i) =>
         `<div class="img-thumb" data-i="${i}"><img src="${src}" alt=""><span class="img-x" data-i="${i}">×</span></div>`
       ).join('');
       imgPrev.querySelectorAll('.img-x').forEach(x => x.onclick = () => {
-        curImgs.splice(+x.dataset.i, 1); renderImgPrev();
+        curFulls.splice(+x.dataset.i, 1); curThumbs.splice(+x.dataset.i, 1); renderImgPrev();
       });
     }
     renderImgPrev();
@@ -552,7 +560,7 @@
     if (ciImg) ciImg.onchange = (e) => {
       const files = Array.from(e.target.files || []);
       if (!files.length) return;
-      files.forEach(f => fileToDataURL(f, 1200, (url) => { if (url) { curImgs.push(url); renderImgPrev(); } }));
+      files.forEach(f => processImage(f, (r) => { if (r) { curFulls.push(r.full); curThumbs.push(r.thumb); renderImgPrev(); } }));
       e.target.value = '';
     };
 
@@ -564,7 +572,8 @@
         name, date: $('#ciDate').value, region: curRegion,
         meet: $('#ciMeet').value.trim(), event: $('#ciEvent').value.trim(),
         food: $('#ciFood').value.trim(), scenery: $('#ciScenery').value.trim(),
-        images: curImgs.slice(),
+        images: curFulls.slice(),
+        thumbs: curThumbs.slice(),
         notes: existing && existing.notes ? existing.notes : []  // 兼容旧数据
       };
       data.cities = data.cities || [];
@@ -601,14 +610,16 @@
         <div style="font-weight:600;color:#E07B20;">${ic} ${label}</div>
         <div style="font-size:.9rem;color:#4A3628;margin-top:3px;white-space:pre-wrap;line-height:1.5;">${esc(city[k])}</div>
       </div>` : '').join('');
-    const imgs = (city.images||[]).length ? `
+    const imgs = city.images || [];
+    const ths = (city.thumbs && city.thumbs.length) ? city.thumbs : imgs;
+    const gallery = ths.length ? `
       <div class="city-img-gallery" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;">
-        ${(city.images||[]).map(src=>`<img class="city-img" src="${src}" alt="" style="width:74px;height:74px;object-fit:cover;border-radius:8px;border:1px solid #E8D9BC;">`).join('')}
+        ${ths.map((src,i)=>`<img class="city-img" src="${src}" data-i="${i}" alt="" style="width:74px;height:74px;object-fit:cover;border-radius:8px;border:1px solid #E8D9BC;cursor:zoom-in;">`).join('')}
       </div>` : '';
     dlg.innerHTML = `
       <div class="card" style="max-width:480px;width:94%;max-height:85vh;overflow-y:auto;padding:20px;">
         <div class="card-title"><span class="ci">${Icons.paw()}</span>${esc(city.name)} <small style="color:#9A8874;font-weight:normal">${city.date||''} · ${REGION_VIEWS[city.region]?REGION_VIEWS[city.region].name:''}</small></div>
-        ${imgs}
+        ${gallery}
         ${cats || '<p style="color:#9A8874;font-size:.85rem;margin-top:8px;">这次旅行还没记录任何内容～</p>'}
         <div style="margin-top:14px;display:flex;gap:8px;">
           <button class="btn primary" id="dlgEdit" style="flex:1">✏️ 编辑</button>
@@ -618,6 +629,9 @@
     document.body.appendChild(dlg);
     $('#dlgEdit').onclick = () => { dlg.remove(); showCityDialog(city); };
     $('#dlgClose').onclick = () => dlg.remove();
+    dlg.querySelectorAll('.city-img').forEach(img => {
+      img.onclick = () => openLightbox(imgs, +img.dataset.i);
+    });
   }
 
   /* 主渲染 */
@@ -666,6 +680,14 @@
     $$('#timeline .tl-item').forEach(el => {
       el.onclick = () => showCityDetail(el.dataset.id);
     });
+    $$('#timeline .tl-photo-img').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.closest('.tl-item').dataset.id;
+        const city = (get().cities||[]).find(c => c.id === id);
+        if (city && city.images && city.images.length) openLightbox(city.images, 0);
+      };
+    });
 
     // 搜索定位（中国）
     if (isCN) {
@@ -696,9 +718,10 @@
     return `<div class="tl-diary">` + items.map(c => {
       const cats = CAT_DEFS.map(([ic,k,label]) => c[k] ? `
         <div class="tl-cat"><span class="tl-ic">${ic}</span><span class="tl-txt">${cutN(c[k], 15)}</span></div>` : '').join('');
-      const hasImg = c.images && c.images.length;
-      const photo = hasImg
-        ? `<div class="tl-photo"><img src="${c.images[0]}" alt=""></div>`
+      const imgs = c.images || [];
+      const ths = (c.thumbs && c.thumbs.length) ? c.thumbs : imgs;
+      const photo = ths.length
+        ? `<div class="tl-photo"><img class="tl-photo-img" src="${ths[0]}" alt=""></div>`
         : `<div class="tl-photo empty">📷</div>`;
       return `<div class="tl-item" data-id="${c.id}">
         <div class="tl-axis">
@@ -715,6 +738,40 @@
         </div>
       </div>`;
     }).join('') + `</div>`;
+  }
+
+  /* 图片灯箱：点击任意图片全屏查看（支持左右切换 / 关闭） */
+  function openLightbox(list, start) {
+    if (!list || !list.length) return;
+    const lb = document.getElementById('lightbox') || (() => {
+      const d = document.createElement('div');
+      d.id = 'lightbox'; d.className = 'lightbox'; d.style.display = 'none';
+      document.body.appendChild(d);
+      return d;
+    })();
+    let idx = start || 0;
+    function renderLb() {
+      lb.innerHTML = `
+        <button class="lb-close" aria-label="关闭">×</button>
+        ${list.length > 1 ? '<button class="lb-nav lb-prev" aria-label="上一张">‹</button><button class="lb-nav lb-next" aria-label="下一张">›</button>' : ''}
+        <img class="lb-img" src="${list[idx]}" alt="">
+        ${list.length > 1 ? '<div class="lb-count">' + (idx+1) + ' / ' + list.length + '</div>' : ''}`;
+      lb.querySelector('.lb-close').onclick = hide;
+      const prev = lb.querySelector('.lb-prev'), next = lb.querySelector('.lb-next');
+      if (prev) prev.onclick = (e) => { e.stopPropagation(); idx = (idx - 1 + list.length) % list.length; renderLb(); };
+      if (next) next.onclick = (e) => { e.stopPropagation(); idx = (idx + 1) % list.length; renderLb(); };
+      lb.querySelector('.lb-img').onclick = (e) => e.stopPropagation();
+    }
+    function hide() { lb.style.display = 'none'; lb.innerHTML = ''; document.removeEventListener('keydown', onKey); }
+    function onKey(e) {
+      if (e.key === 'Escape') hide();
+      else if (list.length > 1 && e.key === 'ArrowLeft') { idx = (idx - 1 + list.length) % list.length; renderLb(); }
+      else if (list.length > 1 && e.key === 'ArrowRight') { idx = (idx + 1) % list.length; renderLb(); }
+    }
+    lb.onclick = hide;  // 点击背景关闭
+    document.addEventListener('keydown', onKey);
+    renderLb();
+    lb.style.display = 'flex';
   }
 
   function render(root) {
