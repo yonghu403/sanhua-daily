@@ -57,15 +57,16 @@
     if (!allCats(data)[curCat]) curCat = 'gi';
     root.innerHTML = `
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
-        <span class="chip on" id="hdToday" style="font-weight:700;background:${document.documentElement.style.getPropertyValue('--orange')||'#F2A340'};color:#fff;">📅 今天</span>
-        <span class="chip sm" id="hdMonth">📆 月历</span>
-        <span class="chip sm" id="hdYear">📊 年历</span>
+        <span class="chip ${view==='today'?'on':'sm'}" id="hdToday" style="${view==='today'?`font-weight:700;background:${document.documentElement.style.getPropertyValue('--orange')||'#F2A340'};color:#fff;`:''}">📅 今天</span>
+        <span class="chip ${view==='month'?'on':'sm'}" id="hdMonth" style="${view==='month'?`font-weight:700;background:${document.documentElement.style.getPropertyValue('--orange')||'#F2A340'};color:#fff;`:''}">📆 月历</span>
+        <span class="chip ${view==='year'?'on':'sm'}" id="hdYear" style="${view==='year'?`font-weight:700;background:${document.documentElement.style.getPropertyValue('--orange')||'#F2A340'};color:#fff;`:''}">📊 年历</span>
       </div>
 
-      <!-- 日期显示 -->
-      <div id="hdDateBar" style="text-align:center;padding:8px;background:#FFFBF5;border-radius:10px;border:2px dashed #E8D9BC;margin-bottom:12px;">
+      <!-- 日期显示（可点击选择日期） -->
+      <div id="hdDateBar" style="text-align:center;padding:8px;background:#FFFBF5;border-radius:10px;border:2px dashed #E8D9BC;margin-bottom:12px;cursor:pointer;position:relative;" title="点击选择日期">
         <div style="font-size:1.15rem;font-weight:700;color:#6B4630;" id="hdDateText">${formatDate(selDate)}</div>
         <div style="font-size:.78rem;color:#9A8874;margin-top:2px;" id="hdWeekday">${weekday(selDate)}</div>
+        <div style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:.72rem;color:#B8A484;">📅 选择</div>
       </div>
 
       <!-- 主状态（分类）切换：可点击切换，选中态加深；自定义主状态可删除 -->
@@ -88,6 +89,30 @@
     $('#hdToday').onclick = () => { view='today'; selDate=today(); render(root); };
     $('#hdMonth').onclick = () => { view='month'; render(root); };
     $('#hdYear').onclick = () => { view='year'; render(root); };
+
+    // 点击日期栏选择日期（支持补录历史记录）
+    let datePickerOpen = false;
+    $('#hdDateBar').onclick = () => {
+      if (datePickerOpen) return; // 防止重复触发
+      const bar = $('#hdDateBar');
+      if (!bar) return;
+      datePickerOpen = true;
+      bar.innerHTML = `
+        <div style="font-size:1.05rem;font-weight:700;color:#6B4630;">📅 选择记录日期</div>
+        <input type="date" id="hdDatePicker" value="${selDate}" style="margin-top:6px;padding:8px 12px;border:2px solid #E8D9BC;border-radius:8px;background:#fff;font-size:1rem;width:160px;text-align:center;color:#6B4630;font-weight:600;cursor:pointer;">
+        <div style="font-size:.72rem;color:#9A8874;margin-top:4px;">支持选择任意日期补录记录</div>
+      `;
+      const picker = $('#hdDatePicker');
+      if (!picker) { datePickerOpen = false; return; }
+      picker.focus();
+      picker.onchange = () => {
+        const v = picker.value;
+        if (v) { selDate = v; datePickerOpen = false; render(root); }
+      };
+      picker.onblur = () => {
+        setTimeout(() => { datePickerOpen = false; render(root); }, 150);
+      };
+    };
 
     $$('#hdCats [data-cat]').forEach(btn => {
       btn.onclick = () => { curCat = btn.dataset.cat; render(root); };
@@ -181,10 +206,10 @@
       </div>
 
       <!-- 保存按钮 -->
-      <button class="btn primary" id="hdSaveBtn" style="width:100%;padding:10px;font-size:1rem;">${Icons.chick()} 保存今日记录</button>
+      <button class="btn primary" id="hdSaveBtn" style="width:100%;padding:10px;font-size:1rem;">${Icons.chick()} 保存${selDate===today()?'今日':formatDate(selDate)+'的'}记录</button>
 
       <!-- 当日已有记录列表 -->
-      ${dayRecs.length?`<div style="margin-top:14px;"><b style="font-size:.88rem">📋 今日已记录 (${dayRecs.length}条)</b><div style="margin-top:4px;">${dayRecs.map((r,i)=>`
+      ${dayRecs.length?`<div style="margin-top:14px;"><b style="font-size:.88rem">📋 ${selDate===today()?'今日':formatDate(selDate)}已记录 (${dayRecs.length}条)</b><div style="margin-top:4px;">${dayRecs.map((r,i)=>`
         <div class="food-item" style="padding:8px 10px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:flex-start;">
           <div>
             <span class="chip sm" style="background:${cat.color};color:#fff;border:none;font-size:.78rem;">${r.status}</span>
@@ -318,6 +343,62 @@
     `;
 
     pane.innerHTML = html;
+
+    // ===== 月度健康汇总 =====
+    const monthRecs = (data.records||[]).filter(r => r.date.startsWith(y+'-'+String(m).padStart(2,'0')));
+    if (monthRecs.length > 0) {
+      // 按分类统计
+      const catFreq = {};
+      const statusFreq = {};
+      let totalScore = 0;
+      monthRecs.forEach(r => {
+        const cn = catInfo(data, r.cat).name;
+        catFreq[cn] = (catFreq[cn] || 0) + 1;
+        statusFreq[r.status] = (statusFreq[r.status] || 0) + 1;
+        totalScore += r.score || 0;
+      });
+      const topStatuses = Object.entries(statusFreq).sort((a,b)=>b[1]-a[1]).slice(0,5);
+      const avgScore = (totalScore / monthRecs.length).toFixed(1);
+
+      // 按日期分布（有记录的日期）
+      const dateMap = {};
+      monthRecs.forEach(r => { dateMap[r.date] = (dateMap[r.date]||0)+1; });
+      const busyDates = Object.entries(dateMap).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+      pane.innerHTML += `
+        <div style="margin-top:14px;padding:12px;background:linear-gradient(135deg,#FFFBF5,#FFF8F0);border-radius:12px;border:2px solid #E8D9BC;">
+          <div style="font-weight:700;color:#6B4630;margin-bottom:8px;">📊 ${y}年${m}月 健康汇总</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">
+            <div style="text-align:center;padding:6px;background:#FFFDF8;border-radius:8px;">
+              <div style="font-size:1.15rem;font-weight:700;color:#E07B20;">${monthRecs.length}</div>
+              <div style="font-size:.7rem;color:#9A8874;">总记录数</div>
+            </div>
+            <div style="text-align:center;padding:6px;background:#FFFDF8;border-radius:8px;">
+              <div style="font-size:1.15rem;font-weight:700;color:#E07B20;">${avgScore}</div>
+              <div style="font-size:.7rem;color:#9A8874;">平均不适分</div>
+            </div>
+            <div style="text-align:center;padding:6px;background:#FFFDF8;border-radius:8px;">
+              <div style="font-size:1.15rem;font-weight:700;color:#5B8C6A;">${Object.keys(dateMap).length}</div>
+              <div style="font-size:.7rem;color:#9A8874;">有记录天数</div>
+            </div>
+          </div>
+
+          <!-- 高频问题 TOP 5 -->
+          ${topStatuses.length ? `<div style="margin-bottom:8px;">
+            <div style="font-size:.82rem;font-weight:600;color:#6B4630;margin-bottom:4px;">🔥 本月高频问题</div>
+            ${topStatuses.map(([st,c]) => `<div class="row" style="align-items:center;margin-bottom:2px;gap:6px;"><span class="chip sm" style="background:#FFE8D6;color:#E07B20;border:none;font-size:.72rem;">${esc(st)}</span><span style="flex:1;height:6px;background:#FAF3E8;border-radius:3px;overflow:hidden;"><span style="display:block;height:100%;background:${document.documentElement.style.getPropertyValue('--orange')||'#F2A340'};border-radius:3px;width:${Math.min(100,(c/monthRecs.length)*100)}%;"></span></span><span style="font-size:.7rem;color:#9A8874;min-width:22px;text-align:right;">×${c}</span></div>`).join('')}
+          </div>` : ''}
+
+          <!-- 记录最密集的日期 -->
+          ${busyDates.length ? `<div style="font-size:.78rem;color:#8C6647;">
+            📌 记录最多：${busyDates.map(([d,c])=>`<b>${formatDate(d)}</b>(${c}条)`).join('、')}
+          </div>` : ''}
+        </div>
+      `;
+    } else {
+      pane.innerHTML += `<div style="margin-top:10px;text-align:center;color:#C9BCAA;font-size:.84rem;padding:12px;">${y}年${m}月暂无健康记录 ✨</div>`;
+    }
+
     $('#mPrev').onclick = () => { selDate = `${y}-${String(m-1||12).padStart(2,'0')}-01`; if(m===1)selDate=`${y-1}-12-01`; paintPane(); };
     $('#mNext').onclick = () => { selDate = `${y}-${String(m+1<=12?m+1:1).padStart(2,'0')}-01`; if(m===12)selDate=`${y+1}-01-01`; paintPane(); };
 

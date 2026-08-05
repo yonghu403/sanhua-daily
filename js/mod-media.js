@@ -384,17 +384,30 @@
   function drawReviews(box) {
     const reviews = getReviews().slice().sort((a, b) => b.ts - a.ts);
     if (!reviews.length) { box.innerHTML = `<div class="empty"><div class="e-ico">${Icons.chick()}</div>还没有点评～<br>看完一部好作品，来记一笔吧</div>`; return; }
-    box.innerHTML = reviews.map(rv => `
+    box.innerHTML = reviews.map(rv => {
+      // 格式化观看日期范围
+      let watchDateStr = '';
+      if (rv.watchDateFrom) {
+        const df = rv.watchDateFrom.slice(5).replace('-0','-').replace('-','-'); // M-D
+        const dt = (rv.watchDateTo || rv.watchDateFrom).slice(5).replace('-0','-').replace('-','-');
+        if (rv.watchDateTo && rv.watchDateTo !== rv.watchDateFrom) {
+          watchDateStr = ` · 📅 ${df} 至 ${dt}`;
+        } else {
+          watchDateStr = ` · 📅 ${df}`;
+        }
+      }
+      return `
       <div class="rec-item" data-id="${rv.id}">
         <div class="rec-ico">${emoOf(rv.type)}</div>
         <div class="rec-main">
           <div class="t">${esc(rv.title)} ${stars(rv.rating || 0)}</div>
           <div class="s">${esc(rv.text || '')}</div>
           ${rv.imgs && rv.imgs.length ? `<div class="rthumbs">${rv.imgs.map(i => `<img class="rthumb-img" src="${i}">`).join('')}</div>` : ''}
-          <div class="hint" style="margin-top:2px;">${niceDate(rv.date)}${rv.type ? ' · ' + esc(rv.type) : ''}</div>
+          <div class="hint" style="margin-top:2px;">${niceDate(rv.date)}${rv.type ? ' · ' + esc(rv.type) : ''}${watchDateStr}</div>
         </div>
         <span class="chip sm" data-act="del">×</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     box.onclick = async (e) => {
       const it = e.target.closest('[data-id]'); if (!it) return;
       if (e.target.dataset.act === 'del') {
@@ -410,6 +423,8 @@
   }
 
   function addReview() {
+    const now = new Date();
+    const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
     modal.open('写一条点评', `
       <input class="field" id="vTitle" placeholder="作品名称">
       <div class="row" style="margin-top:8px;gap:6px;">
@@ -417,6 +432,18 @@
         <div class="grow row" style="gap:2px;justify-content:flex-end;" id="vStars"></div>
       </div>
       <div class="hint" style="margin-top:2px;">点击星星打分（1–5）</div>
+
+      <!-- 观看时间 -->
+      <div style="margin-top:10px;">
+        <label style="font-size:.85rem;color:#6B4630;font-weight:600;display:block;margin-bottom:4px;">📅 观看时间</label>
+        <div class="row" style="gap:6px;align-items:center;">
+          <input type="date" class="field" id="vDateFrom" value="${y}-${m}-${d}" style="flex:1;">
+          <span style="color:#9A8874;font-size:.82rem;">至</span>
+          <input type="date" class="field" id="vDateTo" value="${y}-${m}-${d}" style="flex:1;">
+        </div>
+        <div class="hint" style="margin-top:2px;font-size:.75rem;">可填写观看的起止日期，只看了一天则保持相同即可</div>
+      </div>
+
       <textarea class="field" id="vText" style="margin-top:8px;min-height:80px;" placeholder="你的心得、体会、名场面…"></textarea>
       <button class="btn ghost block sm" id="vImg" style="margin-top:8px;">${Icons.photo()}添加图片（最多 3 张）</button>
       <div class="rthumbs" id="vImgPrev" style="margin-top:6px;"></div>
@@ -441,8 +468,13 @@
       $('#vYes', b).onclick = () => {
         const title = $('#vTitle', b).value.trim();
         if (!title) { toast('写个名字吧'); return; }
+        const dateFrom = $('#vDateFrom', b).value || today();
+        const dateTo = $('#vDateTo', b).value || dateFrom;
+        // 确保 dateTo >= dateFrom
+        const watchStart = dateFrom <= dateTo ? dateFrom : dateTo;
+        const watchEnd = dateFrom <= dateTo ? dateTo : dateFrom;
         const reviews = getReviews();
-        reviews.unshift({ id: uid(), title, type: $('#vType', b).value, rating, text: $('#vText', b).value.trim(), imgs: imgs.slice(), date: today(), ts: Date.now() });
+        reviews.unshift({ id: uid(), title, type: $('#vType', b).value, rating, text: $('#vText', b).value.trim(), imgs: imgs.slice(), date: today(), ts: Date.now(), watchDateFrom: watchStart, watchDateTo: watchEnd });
         setReviews(reviews); modal.close(); drawReviews($('#revList')); toast('点评已记下 ✍️');
       };
     });
