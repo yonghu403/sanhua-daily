@@ -243,7 +243,8 @@
       ['🧍 体态矫正', ps, posTotal],
       ['🧘 长寿养生', h, hTotal]
     ];
-    $('#progBody').innerHTML = rows.map(([nm, v, tot]) => {
+    const pb = $('#progBody');
+    if (pb) pb.innerHTML = rows.map(([nm, v, tot]) => {
       const pct = tot ? Math.min(100, Math.round(v / tot * 100)) : 0;
       return `<div class="prog-row"><span class="nm">${nm}</span>
         <div class="pbar"><i style="width:${pct}%"></i></div>

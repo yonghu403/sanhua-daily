@@ -39,6 +39,9 @@
 
   let curSec = 'clothes';
   let curCol = '全部';
+  let outfitFilterTag = '__all__'; // 标签筛选
+  let outfitFilterY = ''; // 年份筛选，空=全部
+  let outfitFilterSeason = '__all__'; // 季节筛选
   let autoW = DB.get('outfit.autoWeather', false);
 
   const getNotes = () => DB.get('outfit.notes', []);
@@ -89,6 +92,7 @@
           <button class="btn grow" id="noteAdd">${Icons.plus()}添加图文存档</button>
           <button class="btn ghost" id="colManage">合集</button>
         </div>
+        <div id="outfitFilters" style="margin-bottom:10px;"></div>
         <div class="grid2" id="noteGrid"></div>
       </div>
 
@@ -100,8 +104,9 @@
 
     $$('#secTabs .tab').forEach(t => t.onclick = () => {
       curSec = t.dataset.k; curCol = '全部';
+      outfitFilterTag = '__all__'; outfitFilterY = ''; outfitFilterSeason = '__all__';
       $$('#secTabs .tab').forEach(x => x.classList.toggle('active', x === t));
-      drawCols(); drawNotes();
+      drawCols(); drawNotes(); drawOutfitFilters();
     });
     $('#noteAdd').onclick = () => editNote(null);
     $('#colManage').onclick = manageCollections;
@@ -118,7 +123,7 @@
     };
     $('#wSavePlan').onclick = () => { DB.set('outfit.plan:' + today(), $('#wMyPlan').value); toast('今日穿搭已记录 👗'); };
 
-    drawCols(); drawNotes(); drawColors();
+    drawCols(); drawNotes(); drawColors(); drawOutfitFilters();
     // 开启自动更新且今日天气缺失/过期时，静默刷新一次
     if (autoW) {
       const w = DB.get('outfit.weather', {});
@@ -214,11 +219,31 @@
     const cols = Array.from(new Set(notes.map(n => n.col).filter(Boolean)));
     modal.open('合集管理', `
       <div class="hint" style="margin-bottom:9px;">合集用于把同类笔记合并在一起，比如「秋冬通勤」「显白配色」。</div>
-      <div id="colList">${cols.length ? cols.map(c => `
-        <div class="rec-item"><div class="rec-ico">📁</div>
-        <div class="rec-main"><div class="t">${esc(c)}</div><div class="s">${notes.filter(n => n.col === c).length} 条笔记</div></div>
+      <div id="colList">${cols.length ? cols.map(c => {
+        const items = notes.filter(n => n.col === c);
+        return `<div class="rec-item" data-col-view="${esc(c)}" style="cursor:pointer;">
+        <div class="rec-ico">📁</div>
+        <div class="rec-main"><div class="t">${esc(c)}</div><div class="s">${items.length} 条笔记</div></div>
         <button class="chip sm" data-ren="${esc(c)}">改名</button>
-        <button class="chip sm" data-rm="${esc(c)}">解散</button></div>`).join('') : '<div class="empty">还没有合集，添加笔记时填写合集名即可自动创建</div>'}</div>`, (b) => {
+        <button class="chip sm" data-rm="${esc(c)}">解散</button></div>`;
+      }).join('') : '<div class="empty">还没有合集，添加笔记时填写合集名即可自动创建</div>'}</div>`, (b) => {
+      // 点击合集名称区域 → 查看该合集所有笔记
+      $$('[data-col-view]', b).forEach(el => el.onclick = (e) => {
+        if (e.target.closest('[data-ren]') || e.target.closest('[data-rm]')) return; // 点按钮不触发
+        const colName = el.dataset.colView;
+        const colNotes = getNotes().filter(n => n.type === curSec && n.col === colName).sort((a, b) => b.ts - a.ts);
+        modal.open('📁 ' + colName + `（${colNotes.length} 条）`, colNotes.length ? colNotes.map(n => `
+          <div class="pcard" style="margin-bottom:9px;">
+            ${n.imgs && n.imgs[0] ? `<img class="pimg" src="${n.imgs[0]}" style="max-height:160px;object-fit:cover;border-radius:10px;">` : ''}
+            <div style="font-size:13px;font-weight:700;margin-top:5px;">${esc(n.title || '未命名')}</div>
+            <div class="hint" style="font-size:11.5px;">${new Date(n.ts).toLocaleString('zh-CN')}</div>
+            ${n.text ? `<div style="font-size:12.5px;line-height:1.6;margin-top:4px;white-space:pre-wrap;">${esc(n.text.slice(0, 200))}${n.text.length > 200 ? '…' : ''}</div>` : ''}
+            <div class="chip-group" style="margin-top:6px;">
+              ${n.season ? `<span class="chip sm" style="background:#F2A340;color:#fff;">${esc(n.season)}</span>` : ''}
+              ${(n.tags || []).slice(0, 3).map(t => `<span class="chip sm">#${esc(t)}</span>`).join('')}
+            </div>
+          </div>`).join('') : '<div class="empty">该合集暂无笔记</div>');
+      });
       $$('[data-ren]', b).forEach(btn => btn.onclick = async () => {
         const old = btn.dataset.ren;
         const nv = await UI.promptBox('新的合集名称', old);
@@ -238,6 +263,15 @@
   function drawNotes() {
     let list = getNotes().filter(n => n.type === curSec);
     if (curCol !== '全部') list = list.filter(n => n.col === curCol);
+    // 标签筛选
+    if (outfitFilterTag !== '__all__') list = list.filter(n => (n.tags || []).includes(outfitFilterTag));
+    // 年份筛选
+    if (outfitFilterY) list = list.filter(n => {
+      const d = new Date(n.ts);
+      return String(d.getFullYear()) === outfitFilterY;
+    });
+    // 季节筛选
+    if (outfitFilterSeason !== '__all__') list = list.filter(n => n.season === outfitFilterSeason);
     list.sort((a, b) => b.ts - a.ts);
     const g = $('#noteGrid');
     if (!list.length) {
@@ -253,6 +287,7 @@
           <div class="pt">${esc(n.title || '未命名')}</div>
           <div class="ps">${esc((n.text || '').slice(0, 40))}</div>
           <div class="pf">
+            ${n.season ? `<span class="tag t-mid" style="background:#F2A340;color:#fff;">${esc(n.season)}</span>` : ''}
             ${n.col ? `<span class="tag t-mid">📁${esc(n.col)}</span>` : ''}
             ${(n.tags || []).slice(0, 2).map(t => `<span class="tag t-soul">${esc(t)}</span>`).join('')}
             ${n.imgs && n.imgs.length > 1 ? `<span class="tag t-body">${n.imgs.length}图</span>` : ''}
@@ -262,12 +297,58 @@
     $$('#noteGrid .pcard').forEach(c => c.onclick = () => viewNote(c.dataset.id));
   }
 
+  /* ---- 衣橱筛选（年份/季节/标签） ---- */
+  function drawOutfitFilters() {
+    const box = $('#outfitFilters');
+    if (!box) return;
+    const notes = getNotes().filter(n => n.type === curSec);
+    // 收集所有年份
+    const years = Array.from(new Set(notes.map(n => new Date(n.ts).getFullYear()).sort((a,b)=>b-a)));
+    // 收集所有标签
+    const allTags = Array.from(new Set(notes.flatMap(n => n.tags || []))).sort();
+    // 收集所有已用季节
+    const allSeasons = Array.from(new Set(notes.map(n => n.season).filter(Boolean)));
+
+    // 当前筛选后的数量提示
+    let filteredCount = notes.length;
+    if (outfitFilterY) filteredCount = notes.filter(n => String(new Date(n.ts).getFullYear()) === outfitFilterY).length;
+    const baseList = outfitFilterY ? notes.filter(n => String(new Date(n.ts).getFullYear()) === outfitFilterY) : notes;
+    if (outfitFilterSeason !== '__all__') filteredCount = baseList.filter(n => n.season === outfitFilterSeason).length;
+    const sList = outfitFilterSeason !== '__all__' ? baseList.filter(n => n.season === outfitFilterSeason) : baseList;
+    if (outfitFilterTag !== '__all__') filteredCount = sList.filter(n => (n.tags||[]).includes(outfitFilterTag)).length;
+
+    box.innerHTML = `
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 10px;background:#FFFBF5;border-radius:10px;border:1.5px dashed #E8D9BC;">
+        <span style="font-size:.76rem;color:#9A8874;font-weight:600;white-space:nowrap;">🔍 筛选</span>
+        <select id="ofYearSel" style="padding:3px 7px;border:1.5px solid #E8D9BC;border-radius:7px;background:#fff;font-size:.73rem;color:#4A3628;">
+          <option value="">📅 全部年份</option>
+          ${years.map(y => `<option value="${y}" ${outfitFilterY===String(y)?'selected':''}>${y}年</option>`).join('')}
+        </select>
+        <select id="ofSeasonSel" style="padding:3px 7px;border:1.5px solid #E8D9BC;border-radius:7px;background:#fff;font-size:.73rem;color:#4A3628;">
+          <option value="__all__" ${outfitFilterSeason==='__all__'?'selected':''}>🍂 全部季节</option>
+          ${['春','夏','秋','冬'].map(s => {
+            const cnt = allSeasons.filter(x => x === s).length;
+            return `<option value="${s}" ${outfitFilterSeason===s?'selected':''}>${s} ${cnt ? '('+cnt+')' : ''}</option>`;
+          }).join('')}
+        </select>
+        <select id="ofTagSel" style="padding:3px 7px;border:1.5px solid #E8D9BC;border-radius:7px;background:#fff;font-size:.73rem;color:#4A3628;flex:1;min-width:80px;">
+          <option value="__all__" ${outfitFilterTag==='__all__'?'selected':''}>🏷️ 全部标签</option>
+          ${allTags.map(t => `<option value="${esc(t)}" ${outfitFilterTag===t?'selected':''}>${esc(t)}</option>`).join('')}
+        </select>
+        <span style="font-size:.7rem;color:#C9A66B;white-space:nowrap;margin-left:auto;">${filteredCount < notes.length ? filteredCount + '/' + notes.length : notes.length} 条</span>
+      </div>`;
+    $('#ofYearSel').onchange = () => { outfitFilterY = $('#ofYearSel').value; drawNotes(); drawOutfitFilters(); };
+    $('#ofSeasonSel').onchange = () => { outfitFilterSeason = $('#ofSeasonSel').value; drawNotes(); drawOutfitFilters(); };
+    $('#ofTagSel').onchange = () => { outfitFilterTag = $('#ofTagSel').value; drawNotes(); drawOutfitFilters(); };
+  }
+
   function viewNote(id) {
     const n = getNotes().find(x => x.id === id); if (!n) return;
     modal.open(n.title || '存档', `
       ${(n.imgs || []).map(s => `<img class="onote-img" src="${s}" style="width:100%;border-radius:14px;margin-bottom:8px;">`).join('')}
       <div style="font-size:13.5px;line-height:1.8;white-space:pre-wrap;">${esc(n.text || '')}</div>
       <div class="chip-group" style="margin-top:9px;">
+        ${n.season ? `<span class="chip sm" style="background:#F2A340;color:#fff;">🍂 ${esc(n.season)}</span>` : ''}
         ${n.col ? `<span class="chip sm">📁 ${esc(n.col)}</span>` : ''}
         ${(n.tags || []).map(t => `<span class="chip sm">#${esc(t)}</span>`).join('')}
       </div>
@@ -301,6 +382,14 @@
         <div class="grow"><span class="lbl">合集（可留空）</span><input class="field" id="nCol" value="${esc(n.col || '')}" placeholder="秋冬通勤" list="colDL"></div>
         <div class="grow"><span class="lbl">标签（逗号分隔）</span><input class="field" id="nTags" value="${esc((n.tags || []).join(','))}" placeholder="显白,法式"></div>
       </div>
+      <div class="row" style="margin-top:8px;">
+        <div class="grow"><span class="lbl">季节分类</span>
+          <select id="nSeason" style="width:100%;padding:6px 9px;border:1.5px solid #E8D9BC;border-radius:8px;background:#fff;font-size:.85rem;color:#4A3628;">
+            <option value="">未分类</option>
+            ${['春','夏','秋','冬'].map(s => `<option value="${s}" ${(n.season||'')===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+      </div>
       <datalist id="colDL">${Array.from(new Set(all.filter(x => x.type === curSec).map(x => x.col).filter(Boolean))).map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist>
       <button class="btn block" id="nSave" style="margin-top:12px;">保存</button>`, (b) => {
       const drawImgs = () => {
@@ -317,6 +406,7 @@
         n.title = t; n.text = $('#nText', b).value; n.imgs = imgs;
         n.col = $('#nCol', b).value.trim();
         n.tags = $('#nTags', b).value.split(/[,，]/).map(x => x.trim()).filter(Boolean);
+        n.season = $('#nSeason', b).value;
         n.type = curSec; n.ts = n.ts || Date.now();
         if (!id) all.push(n);
         setNotes(all); modal.close(); drawCols(); drawNotes(); toast('存好啦 ✨');
