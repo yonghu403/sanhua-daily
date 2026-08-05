@@ -50,6 +50,8 @@
   let selDate = today();
   let curCat = 'gi';
   let rootEl = null;
+  let traceTime = '__all__'; // 时间筛选：__all__/week/2w/month
+  let traceStatus = '__all__'; // 状态筛选：__all__ 或具体状态名
 
   function render(root) {
     rootEl = root;
@@ -227,6 +229,8 @@
       </div>
     `;
 
+    // 近期溯源状态筛选
+    bindTraceFilter();
     // 打分滑块
     $('#hdScore').oninput = () => { $('#hdScoreVal').textContent = $('#hdScore').value; };
     // 状态选择
@@ -551,22 +555,114 @@
       html += '</ul></div>';
     }
 
-    // 历史溯源汇总
-    const traces = records.filter(r=>r.trace).slice(-5).reverse();
-    if (traces.length) {
-      html += `<div><b style="font-size:.85rem;color:#5B8C6A;">🔍 近期溯源记录</b><div style="margin-top:4px;">`;
-      traces.forEach(r => {
+    // ===== 历史溯源汇总（支持时间+状态双维筛选，展示所有记录）=====
+    if (records.length) {
+      // 所有已记录的状态（按出现次数排序，基于全部记录）
+      const stFreq = {};
+      records.forEach(r => { stFreq[r.status] = (stFreq[r.status] || 0) + 1; });
+      const stList = Object.entries(stFreq).sort((a, b) => b[1] - a[1]);
+      // 筛选失效（该状态已被删光）则回退到全部
+      if (traceStatus !== '__all__' && !stFreq[traceStatus]) traceStatus = '__all__';
+
+      // 按日期排序（旧→新），使用全部记录
+      const sorted = records.slice().sort((a, b) => (a.date === b.date ? (a.ts || 0) - (b.ts || 0) : (a.date < b.date ? -1 : 1)));
+
+      // 时间筛选：计算截止天数
+      const now = new Date(); now.setHours(0,0,0,0);
+      const timeCut = (() => {
+        if (traceTime === 'week') return 7;
+        if (traceTime === '2w') return 14;
+        if (traceTime === 'month') return 30;
+        return Infinity; // __all__ 不限
+      })();
+
+      // 应用双筛选
+      let picked = sorted.filter(r => {
+        const statusOk = (traceStatus === '__all__') || (r.status === traceStatus);
+        if (!statusOk) return false;
+        if (timeCut === Infinity) return true;
+        const rd = new Date(r.date + 'T00:00:00');
+        const diff = Math.round((now - rd) / 86400000);
+        return diff <= timeCut && diff >= 0;
+      }).reverse(); // 新→前显示
+
+      html += `<div>
+        <div class="row" style="align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;">
+          <b style="font-size:.85rem;color:#5B8C6A;">🔍 近期溯源记录</b>
+          <span style="font-size:.76rem;color:#9A8874;margin-left:auto;">分类筛选</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:5px;">
+          <select id="hdTraceTime" style="padding:3px 7px;border:1.5px solid #CFE0D2;border-radius:7px;background:#fff;font-size:.75rem;color:#4A3628;">
+            <option value="__all__" ${traceTime==='__all__'?'selected':''}>🕐 全部时间</option>
+            <option value="week" ${traceTime==='week'?'selected':''}>📅 一周内</option>
+            <option value="2w" ${traceTime==='2w'?'selected':''}>📅 两周内</option>
+            <option value="month" ${traceTime==='month'?'selected':''}>📅 一月内</option>
+          </select>
+          <select id="hdTraceStatus" style="padding:3px 7px;border:1.5px solid #CFE0D2;border-radius:7px;background:#fff;font-size:.75rem;color:#4A3628;flex:1;min-width:100px;">
+            <option value="__all__" ${traceStatus==='__all__'?'selected':''}>🏷️ 全部状态</option>
+            ${stList.map(([s, c]) => `<option value="${esc(s)}" ${traceStatus===s?'selected':''}>${esc(s)}（${c}次）</option>`).join('')}
+          </select>
+        </div>`;
+
+      // 选定某个状态时，给出这一状态的发展周期概览（不受时间筛选限制，展示完整周期）
+      if (traceStatus !== '__all__') {
+        const allOfStatus = records.filter(r => r.status === traceStatus)
+          .slice().sort((a, b) => (a.date === b.date ? (a.ts || 0) - (b.ts || 0) : (a.date < b.date ? -1 : 1))).reverse();
+        if (allOfStatus.length) {
+          const first = allOfStatus[allOfStatus.length - 1], last = allOfStatus[0];
+        const scores = allOfStatus.map(r => r.score || 0).filter(Boolean);
+        const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '-';
+        const span = (() => {
+          const d1 = new Date(first.date + 'T00:00:00'), d2 = new Date(last.date + 'T00:00:00');
+          const days = Math.round((d2 - d1) / 86400000) + 1;
+          return days > 0 ? days : 1;
+        })();
+        const trend = (() => {
+          if (scores.length < 2) return '—';
+          const diff = (last.score || 0) - (first.score || 0);
+          if (diff <= -2) return '📉 明显好转';
+          if (diff < 0) return '🙂 略有缓解';
+          if (diff === 0) return '➖ 基本持平';
+          if (diff < 2) return '🙁 略有加重';
+          return '📈 明显加重';
+        })();
+        html += `<div style="padding:8px 10px;background:#F4FAF5;border:1.5px solid #CFE0D2;border-radius:8px;margin-bottom:6px;font-size:.78rem;color:#4A3628;line-height:1.7;">
+          <b style="color:#5B8C6A;">「${esc(traceStatus)}」发展周期</b><br>
+          共 <b>${allOfStatus.length}</b> 次记录 · 跨度 <b>${span}</b> 天（${first.date} → ${last.date}）<br>
+          平均不适 <b style="color:#E07B20;">${avg}/10</b> · 趋势 <b>${trend}</b>
+        </div>`;
+        } // end allOfStatus.length
+      } // end traceStatus !== __all__
+
+      html += `<div>`;
+      if (!picked.length) {
+        html += `<p style="color:#9A8874;font-size:.8rem;padding:6px;">该筛选条件下暂无记录～</p>`;
+      }
+      picked.forEach(r => {
         const ci = catInfo(data, r.cat);
         html += `<div style="padding:6px 8px;background:#fff;border-radius:6px;margin-bottom:3px;font-size:.8rem;">
           <span style="color:#9A8874;">${r.date}</span>
-          <span class="chip sm" style="font-size:.7rem;background:${ci.color};color:#fff;border:none;margin-left:4px;">${r.status}</span>
-          <p style="color:#4A3628;margin-top:2px;">${esc(r.trace)}</p>
+          <span class="chip sm" style="font-size:.7rem;background:${ci.color};color:#fff;border:none;margin-left:4px;">${esc(r.status)}</span>
+          ${r.score ? `<span style="color:#E07B20;font-weight:600;margin-left:4px;font-size:.76rem;">${r.score}/10</span>` : ''}
+          ${r.trace ? `<p style="color:#4A3628;margin-top:2px;">${esc(r.trace)}</p>` : ''}
         </div>`;
       });
       html += '</div></div>';
     }
 
     return html;
+  }
+
+  /* 绑定溯源双筛选（时间+状态，每次重绘汇总区后都要重新绑定） */
+  function bindTraceFilter() {
+    const timeSel = $('#hdTraceTime');
+    const stSel = $('#hdTraceStatus');
+    if (timeSel) timeSel.onchange = () => { traceTime = timeSel.value; reRenderSummary(); };
+    if (stSel) stSel.onchange = () => { traceStatus = stSel.value; reRenderSummary(); };
+  }
+  function reRenderSummary() {
+    const box = $('#hdAISummary');
+    if (box) { box.innerHTML = renderAISummary(get()); bindTraceFilter(); }
   }
 
   /* 工具函数 */

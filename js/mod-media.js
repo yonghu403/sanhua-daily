@@ -225,10 +225,23 @@
   }
 
   let curCat = '全部';
+  // 最新推荐：折叠 / 筛选状态（折叠状态持久化）
+  let recCollapsed = DB.get('pref.mediaRecCollapsed', false);
+  let recType = '全部';      // 剧集类型：动漫/综艺/电影/剧集/纪录
+  let recLimit = 12;         // 显示个数，0 = 全部
+  // 我的点评：筛选状态
+  let revTime = 'all';       // all | month | 3m | year | 具体年份
+  let revType = '全部';
 
   function totalCount() { return getRecs().reduce((s, c) => s + c.items.length, 0); }
   function allItems() { return getRecs().flatMap(c => c.items); }
   function itemsOf(cat) { return cat === '全部' ? allItems() : (getRecs().find(c => c.cat === cat) || { items: [] }).items; }
+  // 应用「分类 + 类型」筛选后的完整结果（未截断）
+  function filteredItems() {
+    let arr = itemsOf(curCat);
+    if (recType !== '全部') arr = arr.filter(it => it.type === recType);
+    return arr;
+  }
 
   function render(root) {
     ensureSeed();
@@ -240,29 +253,98 @@
       </div>
 
       <div class="card">
-        <div class="card-title"><span class="ci">${Icons.star()}</span>最新推荐 <small>${totalCount()} 部</small></div>
-        <div class="chip-group" id="catGrp" style="margin-bottom:9px;"></div>
-        <div class="mgrid" id="recGrid"></div>
-        <div class="row" style="margin-top:9px;gap:6px;">
-          <button class="btn ghost grow sm" id="addWork">${Icons.plus()}加作品</button>
-          <button class="btn ghost grow sm" id="addCat">🗂 加分类</button>
-          <button class="btn ghost grow sm" id="manCat">✏️ 管分类</button>
+        <div class="card-title" style="display:flex;align-items:center;">
+          <span class="ci">${Icons.star()}</span>最新推荐 <small>${totalCount()} 部</small>
+          <button class="chip sm" id="recToggle" style="margin-left:auto;font-weight:700;">${recCollapsed ? '▶ 展开' : '▼ 收起'}</button>
         </div>
+        <div id="recBody" style="${recCollapsed ? 'display:none;' : ''}">
+          <div class="hint" style="margin-bottom:4px;font-size:.74rem;">🗂 观看分类</div>
+          <div class="chip-group" id="catGrp" style="margin-bottom:9px;"></div>
+          <div class="row" style="gap:6px;margin-bottom:9px;flex-wrap:wrap;align-items:center;">
+            <select class="field" id="recTypeSel" style="flex:1;min-width:104px;padding:6px 8px;font-size:.82rem;">
+              <option value="全部">🎬 全部类型</option>
+              ${Object.keys(TYPE_EMO).map(t => `<option value="${esc(t)}" ${recType === t ? 'selected' : ''}>${TYPE_EMO[t]} ${esc(t)}</option>`).join('')}
+            </select>
+            <select class="field" id="recLimitSel" style="flex:1;min-width:104px;padding:6px 8px;font-size:.82rem;">
+              ${[6, 12, 24].map(n => `<option value="${n}" ${recLimit === n ? 'selected' : ''}>显示 ${n} 部</option>`).join('')}
+              <option value="0" ${recLimit === 0 ? 'selected' : ''}>显示全部</option>
+            </select>
+          </div>
+          <div class="mgrid" id="recGrid"></div>
+          <div class="hint" id="recCountTip" style="margin-top:6px;text-align:center;font-size:.75rem;"></div>
+          <div class="row" style="margin-top:9px;gap:6px;">
+            <button class="btn ghost grow sm" id="addWork">${Icons.plus()}加作品</button>
+            <button class="btn ghost grow sm" id="addCat">🗂 加分类</button>
+            <button class="btn ghost grow sm" id="manCat">✏️ 管分类</button>
+          </div>
+        </div>
+        ${recCollapsed ? `<div class="hint" style="text-align:center;font-size:.78rem;padding:2px 0;">推荐内容已收起，点「展开」查看 ${totalCount()} 部作品</div>` : ''}
       </div>
 
       <div class="card">
         <div class="card-title"><span class="ci">${Icons.pen()}</span>我的点评 <small>${getReviews().length} 篇</small></div>
+        <div class="row" style="gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+          <select class="field" id="revTimeSel" style="flex:1;min-width:112px;padding:6px 8px;font-size:.82rem;">
+            ${timeOptions().map(o => `<option value="${esc(o.v)}" ${revTime === o.v ? 'selected' : ''}>${esc(o.t)}</option>`).join('')}
+          </select>
+          <select class="field" id="revTypeSel" style="flex:1;min-width:104px;padding:6px 8px;font-size:.82rem;">
+            <option value="全部">🎬 全部类型</option>
+            ${Object.keys(TYPE_EMO).map(t => `<option value="${esc(t)}" ${revType === t ? 'selected' : ''}>${TYPE_EMO[t]} ${esc(t)}</option>`).join('')}
+          </select>
+        </div>
         <div id="revList"></div>
         <button class="btn block" id="addRev" style="margin-top:9px;">${Icons.plus()}写一条点评</button>
       </div>`;
     drawChips();
-    drawRecs($('#recGrid'));
+    if (!recCollapsed) drawRecs($('#recGrid')); // 收起时不渲染，省流量也更快
     $('#catGrp').onclick = (e) => { const c = e.target.closest('[data-c]'); if (!c) return; curCat = c.dataset.c; drawChips(); drawRecs($('#recGrid')); };
-    $('#addWork').onclick = addWork;
-    $('#addCat').onclick = addCat;
-    $('#manCat').onclick = manCat;
+    $('#recToggle').onclick = () => {
+      recCollapsed = !recCollapsed;
+      DB.set('pref.mediaRecCollapsed', recCollapsed);
+      render(root);
+    };
+    const tSel = $('#recTypeSel');
+    if (tSel) tSel.onchange = () => { recType = tSel.value; drawRecs($('#recGrid')); };
+    const lSel = $('#recLimitSel');
+    if (lSel) lSel.onchange = () => { recLimit = +lSel.value; drawRecs($('#recGrid')); };
+    const addW = $('#addWork'); if (addW) addW.onclick = addWork;
+    const addC = $('#addCat'); if (addC) addC.onclick = addCat;
+    const manC = $('#manCat'); if (manC) manC.onclick = manCat;
     drawReviews($('#revList'));
+    $('#revTimeSel').onchange = (e) => { revTime = e.target.value; drawReviews($('#revList')); };
+    $('#revTypeSel').onchange = (e) => { revType = e.target.value; drawReviews($('#revList')); };
     $('#addRev').onclick = addReview;
+  }
+
+  // 时间阶段筛选项（含动态年份）
+  function timeOptions() {
+    const years = [...new Set(getReviews().map(r => (r.date || '').slice(0, 4)).filter(Boolean))].sort().reverse();
+    const cy = String(new Date().getFullYear());
+    const base = [
+      { v: 'all', t: '🕐 全部时间' },
+      { v: 'month', t: '📅 本月' },
+      { v: '3m', t: '📆 近三个月' },
+      { v: 'year', t: '🗓 今年' }
+    ];
+    years.filter(y => y !== cy).forEach(y => base.push({ v: y, t: `📚 ${y} 年` }));
+    return base;
+  }
+
+  // 按时间阶段 + 类型过滤点评
+  function filterReviews(list) {
+    const now = new Date();
+    const ymNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const yNow = String(now.getFullYear());
+    const d3 = new Date(now.getTime() - 90 * 86400000).toISOString().slice(0, 10);
+    return list.filter(rv => {
+      const d = rv.date || '';
+      if (revTime === 'month' && !d.startsWith(ymNow)) return false;
+      if (revTime === '3m' && d < d3) return false;
+      if (revTime === 'year' && !d.startsWith(yNow)) return false;
+      if (/^\d{4}$/.test(revTime) && !d.startsWith(revTime)) return false;
+      if (revType !== '全部' && rv.type !== revType) return false;
+      return true;
+    });
   }
 
   function drawChips() {
@@ -273,8 +355,20 @@
   }
 
   function drawRecs(box) {
-    const items = itemsOf(curCat);
-    if (!items.length) { box.innerHTML = `<div class="empty"><div class="e-ico">${Icons.rabbit()}</div>这个分类还没有作品～<br>点“加作品”添加你想安利的</div>`; return; }
+    if (!box) return;
+    const all = filteredItems();
+    const tip = $('#recCountTip');
+    if (!all.length) {
+      box.innerHTML = `<div class="empty"><div class="e-ico">${Icons.rabbit()}</div>${recType !== '全部' ? `「${esc(curCat)}」里没有<b>${esc(recType)}</b>类作品～<br>换个筛选条件试试` : '这个分类还没有作品～<br>点“加作品”添加你想安利的'}</div>`;
+      if (tip) tip.textContent = '';
+      return;
+    }
+    const items = recLimit > 0 ? all.slice(0, recLimit) : all;
+    if (tip) {
+      tip.innerHTML = all.length > items.length
+        ? `已显示 <b>${items.length}</b> / 共 ${all.length} 部 · 想看更多可把「显示个数」调大`
+        : `共 ${all.length} 部`;
+    }
     box.innerHTML = items.map(it => {
       const base = genPoster(it); // 兜底用生成的精美海报
       const poster = it.img || (navigator.onLine && it.online ? it.online : base);
@@ -381,43 +475,91 @@
     return `<span class="stars">${s}</span>`;
   }
 
+  // 观看日期文案：8-1 至 8-3 / 8-1
+  function watchText(rv) {
+    if (!rv.watchDateFrom) return '';
+    const cut = (s) => s.slice(5).replace(/^0/, '').replace('-0', '-');
+    const df = cut(rv.watchDateFrom);
+    const dt = cut(rv.watchDateTo || rv.watchDateFrom);
+    return (rv.watchDateTo && rv.watchDateTo !== rv.watchDateFrom) ? `${df} 至 ${dt}` : df;
+  }
+
   function drawReviews(box) {
-    const reviews = getReviews().slice().sort((a, b) => b.ts - a.ts);
-    if (!reviews.length) { box.innerHTML = `<div class="empty"><div class="e-ico">${Icons.chick()}</div>还没有点评～<br>看完一部好作品，来记一笔吧</div>`; return; }
-    box.innerHTML = reviews.map(rv => {
-      // 格式化观看日期范围
-      let watchDateStr = '';
-      if (rv.watchDateFrom) {
-        const df = rv.watchDateFrom.slice(5).replace('-0','-').replace('-','-'); // M-D
-        const dt = (rv.watchDateTo || rv.watchDateFrom).slice(5).replace('-0','-').replace('-','-');
-        if (rv.watchDateTo && rv.watchDateTo !== rv.watchDateFrom) {
-          watchDateStr = ` · 📅 ${df} 至 ${dt}`;
-        } else {
-          watchDateStr = ` · 📅 ${df}`;
-        }
-      }
-      return `
-      <div class="rec-item" data-id="${rv.id}">
-        <div class="rec-ico">${emoOf(rv.type)}</div>
-        <div class="rec-main">
-          <div class="t">${esc(rv.title)} ${stars(rv.rating || 0)}</div>
-          <div class="s">${esc(rv.text || '')}</div>
-          ${rv.imgs && rv.imgs.length ? `<div class="rthumbs">${rv.imgs.map(i => `<img class="rthumb-img" src="${i}">`).join('')}</div>` : ''}
-          <div class="hint" style="margin-top:2px;">${niceDate(rv.date)}${rv.type ? ' · ' + esc(rv.type) : ''}${watchDateStr}</div>
-        </div>
-        <span class="chip sm" data-act="del">×</span>
-      </div>`;
-    }).join('');
+    if (!box) return;
+    const total = getReviews().length;
+    const reviews = filterReviews(getReviews().slice()).sort((a, b) => b.ts - a.ts);
+    if (!total) { box.innerHTML = `<div class="empty"><div class="e-ico">${Icons.chick()}</div>还没有点评～<br>看完一部好作品，来记一笔吧</div>`; return; }
+    if (!reviews.length) { box.innerHTML = `<div class="empty"><div class="e-ico">${Icons.rabbit()}</div>这个时间段/类型下还没有点评～<br>换个筛选条件看看</div>`; return; }
+    box.innerHTML = `
+      <div class="hint" style="margin-bottom:6px;font-size:.75rem;">筛选出 <b>${reviews.length}</b> 篇（共 ${total} 篇）· 点击任意一条查看完整点评</div>
+      ${reviews.map(rv => {
+        const w = watchText(rv);
+        const full = rv.text || '';
+        const brief = full.length > 42 ? esc(full.slice(0, 42)) + '…' : esc(full);
+        return `
+        <div class="rec-item rev-card" data-id="${rv.id}" style="cursor:pointer;">
+          <div class="rec-ico">${emoOf(rv.type)}</div>
+          <div class="rec-main">
+            <div class="t">${esc(rv.title)} ${stars(rv.rating || 0)}</div>
+            <div class="s">${brief || '<span style="color:#C9BCAA;">（没写正文）</span>'}</div>
+            ${rv.imgs && rv.imgs.length ? `<div class="rthumbs">${rv.imgs.map(i => `<img class="rthumb-img" src="${i}">`).join('')}</div>` : ''}
+            <div class="hint" style="margin-top:2px;">${niceDate(rv.date)}${rv.type ? ' · ' + esc(rv.type) : ''}${w ? ' · 📅 ' + w : ''}${full.length > 42 ? ' · <b style="color:#E07B20;">查看全文 ›</b>' : ''}</div>
+          </div>
+          <span class="chip sm" data-act="del">×</span>
+        </div>`;
+      }).join('')}`;
     box.onclick = async (e) => {
       const it = e.target.closest('[data-id]'); if (!it) return;
       if (e.target.dataset.act === 'del') {
         if (await confirmBox('删除这条点评？', '删除')) { setReviews(getReviews().filter(x => x.id !== it.dataset.id)); drawReviews($('#revList')); }
+        return;
       }
+      if (e.target.classList.contains('rthumb-img')) return; // 缩略图交给灯箱
+      showReviewDetail(it.dataset.id);
     };
     $$('#revList .rec-item').forEach(card => {
       const rv2 = reviews.find(r => r.id === card.dataset.id);
       if (rv2 && rv2.imgs && rv2.imgs.length) {
         $$('.rthumb-img', card).forEach((im, i) => { im.onclick = (e) => { e.stopPropagation(); openLightbox(rv2.imgs.slice(), i); }; });
+      }
+    });
+  }
+
+  // ===== 点评详情 =====
+  function showReviewDetail(id) {
+    const rv = getReviews().find(x => x.id === id);
+    if (!rv) { toast('这条点评找不到了'); return; }
+    const w = watchText(rv);
+    modal.open('点评详情', `
+      <div style="text-align:center;margin-bottom:8px;">
+        <div style="font-size:34px;line-height:1.1;">${emoOf(rv.type)}</div>
+        <div style="font-size:1.12rem;font-weight:700;color:#6B4630;margin-top:2px;">${esc(rv.title)}</div>
+        <div style="margin-top:3px;">${stars(rv.rating || 0)} <span class="hint" style="font-size:.78rem;">${rv.rating || 0}/5</span></div>
+      </div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:9px;">
+        <span class="chip sm on">${emoOf(rv.type)} ${esc(rv.type || '未分类')}</span>
+        ${w ? `<span class="chip sm">📅 观看 ${esc(w)}</span>` : ''}
+        <span class="chip sm">✍️ ${esc(niceDate(rv.date))} 写下</span>
+      </div>
+      <div style="padding:10px 12px;background:#FFFBF5;border:2px solid #E8D9BC;border-radius:10px;font-size:.9rem;line-height:1.8;color:#4A3628;white-space:pre-wrap;word-break:break-word;">${rv.text ? esc(rv.text) : '<span style="color:#C9BCAA;">这条点评没有写正文～</span>'}</div>
+      ${rv.imgs && rv.imgs.length ? `
+        <div class="hint" style="margin:9px 0 4px;font-size:.76rem;">🖼 配图 ${rv.imgs.length} 张（点击看大图）</div>
+        <div class="rthumbs" id="rdImgs">${rv.imgs.map(i => `<img class="rthumb-img" src="${i}" style="width:64px;height:64px;object-fit:cover;border-radius:9px;border:1.4px solid var(--line);cursor:zoom-in;">`).join('')}</div>` : ''}
+      <div class="row" style="margin-top:12px;gap:6px;">
+        <button class="btn ghost grow" id="rdDel" style="color:#CC6666;border-color:#CC6666;">删除</button>
+        <button class="btn grow" id="rdOk">关闭</button>
+      </div>`, (b) => {
+      $('#rdOk', b).onclick = () => modal.close();
+      $('#rdDel', b).onclick = async () => {
+        if (await confirmBox('删除这条点评？', '删除')) {
+          setReviews(getReviews().filter(x => x.id !== id));
+          modal.close();
+          drawReviews($('#revList'));
+          toast('已删除');
+        }
+      };
+      if (rv.imgs && rv.imgs.length) {
+        $$('#rdImgs .rthumb-img', b).forEach((im, i) => { im.onclick = () => openLightbox(rv.imgs.slice(), i); });
       }
     });
   }
