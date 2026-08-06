@@ -64,7 +64,9 @@
           <div class="m" id="calTitle"></div>
           <button class="cal-nav" id="nm">›</button>
         </div>
-        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-scroll-x" id="calScrollX">
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
         <div class="hint" style="margin-top:8px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
           <span><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--orange);vertical-align:middle;"></i> 待完成</span>
           <span><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);vertical-align:middle;"></i> 已完成</span>
@@ -150,19 +152,19 @@
       const undone = dayTodos.filter(x => !x.done).length;
       const done = dayTodos.filter(x => x.done).length;
 
-      // 日期下方显示任务标签（最多3条，超出显示+N）
-      const show = dayTodos.slice(0, 3);
-      const extra = dayTodos.length - 3;
+      // 日期下方显示任务标签（竖向排列，最多4条，超出显示+N）
+      const show = dayTodos.slice(0, 4);
+      const extra = dayTodos.length - 4;
       const tags = show.map(td => {
         const cc = CAT_COLORS[td.cat] || CAT_COLORS.body;
-        const truncated = td.text.length > 4 ? td.text.slice(0, 4) + '..' : td.text;
-        return `<span style="display:inline-block;padding:0 4px;border-radius:6px;font-size:.58rem;line-height:1.5;background:${cc.bg};border:1px solid ${cc.border};color:${cc.text};margin:1px 2px 1px 0;white-space:nowrap;${td.done ? 'opacity:.45;text-decoration:line-through;' : ''}">${esc(truncated)}</span>`;
+        const truncated = td.text.length > 5 ? td.text.slice(0, 5) + '..' : td.text;
+        return `<span style="display:block;padding:0 4px;border-radius:5px;font-size:.58rem;line-height:1.6;background:${cc.bg};border:1px solid ${cc.border};color:${cc.text};margin-bottom:1px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${td.done ? 'opacity:.45;text-decoration:line-through;' : ''}">${esc(truncated)}</span>`;
       }).join('');
-      const extraTag = extra > 0 ? `<span style="font-size:.55rem;color:#bbb;">+${extra}</span>` : '';
+      const extraTag = extra > 0 ? `<span style="font-size:.55rem;color:#bbb;display:block;text-align:center;">+${extra}</span>` : '';
 
       html += `<div class="cal-d ${d === t ? 'today' : ''} ${d === selDate ? 'sel' : ''}" data-d="${d}" style="min-height:${dayTodos.length ? '56px' : 'auto'};padding-bottom:4px;overflow:visible;">
         <div>${parseYMD(d).getDate()}${undone ? '<i class="dot"></i>' : ''}${done ? '<i class="dot done"></i>' : ''}</div>
-        ${dayTodos.length ? `<div style="margin-top:2px;display:flex;flex-wrap:wrap;align-items:center;">${tags}${extraTag}</div>` : ''}
+        ${dayTodos.length ? `<div class="cal-tags">${tags}${extraTag}</div>` : ''}
       </div>`;
     });
     $('#calGrid').innerHTML = html;

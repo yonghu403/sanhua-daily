@@ -805,5 +805,5 @@
   }
 
   window.Modules = window.Modules || {};
-  window.Modules.travel = { id: 'travel', name: '走走停停', desc: '用猫爪点亮世界每个角落', icon: 'horse', render };
+  window.Modules.travel = { id: 'travel', name: '走走停停', desc: '用猫爪点亮世界每个角落', icon: 'dog', render };
 })();

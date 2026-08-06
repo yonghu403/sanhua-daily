@@ -108,6 +108,27 @@ input,textarea,select{outline:none;}
 .nav-mini{width:34px;height:34px;border-radius:12px;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;}
 .nav-mini svg{width:22px;height:22px;}
 
+/* ===== 侧边栏隐藏 + 全屏适配 ===== */
+.app-shell.sidebar-hidden .side-nav{display:none;flex:0 0 0;width:0;padding:0;border:none;box-shadow:none;overflow:hidden;}
+.app-shell.sidebar-hidden .main-area{width:100%;}
+.nav-toggle-btn{
+  width:42px;height:38px;border-radius:12px;
+  background:linear-gradient(135deg,#F2A340,#E08A22);border:1.5px solid var(--orange-d);
+  display:flex;align-items:center;justify-content:center;margin-top:6px;
+  transition:.25s;box-shadow:0 2px 8px rgba(224,138,34,.35);color:#fff;
+}
+.nav-toggle-btn:active{transform:scale(.88);}
+.nav-toggle-btn svg{width:22px;height:22px;transition:.3s transform;}
+.app-shell.sidebar-hidden .nav-toggle-btn{
+  position:fixed;left:4px;bottom:8px;z-index:30;
+  background:linear-gradient(135deg,#F2A340,#E08A22);border-color:var(--orange-d);
+  box-shadow:0 3px 12px rgba(224,138,34,.5);
+  color:#fff;
+}
+.app-shell.sidebar-hidden .nav-toggle-btn svg{transform:rotate(180deg);}
+/* 侧边栏内推拉按钮始终显示（即使sidebar-hidden也要在主内容区可见） */
+#btnToggleSide{position:relative;z-index:25;}
+
 .main-area{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;}
 .top-bar{
   flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
@@ -298,7 +319,10 @@ select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .cal-head .m{font-size:15px;font-weight:800;}
 .cal-nav{width:28px;height:28px;border-radius:10px;background:var(--cream);border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--brown2);font-weight:800;}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;overflow:hidden;border-radius:8px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(42px,1fr));gap:2px;border-radius:8px;min-width:max-content;}
+.cal-scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--line2) transparent;padding-bottom:4px;}
+.cal-scroll-x::-webkit-scrollbar{height:5px;}
+.cal-scroll-x::-webkit-scrollbar-thumb{background:var(--line2);border-radius:5px;}
 .cal-w{text-align:center;font-size:10.5px;color:var(--brown-soft);font-weight:700;padding:3px 0;}
 .cal-d{
   border-radius:9px;background:var(--cream);
@@ -314,6 +338,7 @@ select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 .cal-d .dot.done{background:var(--green);}
 .cal-d .mini{font-size:8.5px;font-weight:700;line-height:1;margin-top:1px;opacity:.85;}
 .cal-d .emo{font-size:13px;line-height:1;}
+.cal-tags{display:flex;flex-direction:column;gap:1px;margin-top:2px;}
 
 /* ===== 待办 ===== */
 .todo-item{

@@ -25,6 +25,15 @@
     r.classList.add('fs-' + (fs || 'm'));
   }
 
+  function applyHideSidebar(on) {
+    document.documentElement.classList.toggle('hide-sidebar', !!on);
+    const shell = document.querySelector('.app-shell');
+    if (shell) {
+      if (on) shell.classList.add('sidebar-hidden');
+      else shell.classList.remove('sidebar-hidden');
+    }
+  }
+
   function tickToday() {
     const d = new Date();
     UI.$('#todayChip').textContent = `${d.getMonth() + 1}月${d.getDate()}日 周${UI.WD[d.getDay()]}`;
@@ -55,7 +64,15 @@
     UI.$('#splashCat').innerHTML = Icons.cat();
     UI.$('#navLogo').innerHTML = Icons.cat();
     UI.$('#settingsIco').innerHTML = Icons.gear();
+    UI.$('#toggleIco').innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 5 L7 12 L15 19 Z"/></svg>';
     UI.$('#btnSettings').onclick = () => go('settings');
+    UI.$('#btnToggleSide').onclick = () => {
+      const cur = DB.get('pref.hideSidebar', false);
+      const next = !cur;
+      DB.set('pref.hideSidebar', next);
+      applyHideSidebar(next);
+      toast(next ? '侧边栏已隐藏，点左下角按钮恢复' : '侧边栏已恢复');
+    };
 
     // 关闭弹层的通用处理
     UI.$('#modalClose').onclick = () => UI.modal.close();
@@ -70,6 +87,12 @@
     const savedTheme = DB.get('pref.theme', '');
     if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
     if (DB.get('pref.compact', false)) document.documentElement.classList.add('compact');
+    // 侧边栏隐藏偏好
+    if (DB.get('pref.hideSidebar', false)) {
+      document.documentElement.classList.add('hide-sidebar');
+      const shell = document.querySelector('.app-shell');
+      if (shell) shell.classList.add('sidebar-hidden');
+    }
 
     // 阻止移动端长按选中/菜单对内容区的影响（仅图片可长按）
     document.addEventListener('contextmenu', (e) => {

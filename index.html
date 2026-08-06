@@ -13,7 +13,7 @@
 <script>
   // ===== 缓存版本强制校验（v15：彻底破旧缓存） =====
   (function(){
-    var VER = 'sanhua-v25';
+    var VER = 'sanhua-v26';
     var KEY = 'sanhua_sw_ver';
     if (localStorage.getItem(KEY) !== VER) {
       /* 版本变了 → 清掉可能残留的旧缓存标记 */
@@ -62,7 +62,7 @@
   })();
 </script>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="css/style.css?v=25">
+<link rel="stylesheet" href="css/style.css?v=26">
 </head>
 <body>
 
@@ -83,6 +83,9 @@
     <div class="nav-foot">
       <button class="nav-mini" id="btnSettings" title="设置">
         <span class="nav-mini-ico" id="settingsIco"></span>
+      </button>
+      <button class="nav-toggle-btn" id="btnToggleSide" title="隐藏/显示侧边栏">
+        <span class="nav-toggle-ico" id="toggleIco"></span>
       </button>
     </div>
   </nav>
@@ -121,21 +124,21 @@
 
 <div class="toast-wrap" id="toastWrap"></div>
 
-<script src="js/icons.js?v=25"></script>
-<script src="js/db.js?v=25"></script>
-<script src="js/ui.js?v=25"></script>
-<script src="js/mod-todo.js?v=25"></script>
-<script src="js/mod-money.js?v=25"></script>
-<script src="js/mod-eatsleep.js?v=25"></script>
-<script src="js/mod-sport.js?v=25"></script>
-<script src="js/mod-outfit.js?v=25"></script>
-<script src="js/mod-beauty.js?v=25"></script>
-<script src="js/mod-deep.js?v=25"></script>
-<script src="js/mod-media.js?v=25"></script>
-<script src="js/china-rooster.js?v=25"></script>
-<script src="js/mod-travel.js?v=25"></script>
-<script src="js/mod-health.js?v=25"></script>
-<script src="js/mod-settings.js?v=25"></script>
-<script src="js/app.js?v=25"></script>
+<script src="js/icons.js?v=26"></script>
+<script src="js/db.js?v=26"></script>
+<script src="js/ui.js?v=26"></script>
+<script src="js/mod-todo.js?v=26"></script>
+<script src="js/mod-money.js?v=26"></script>
+<script src="js/mod-eatsleep.js?v=26"></script>
+<script src="js/mod-sport.js?v=26"></script>
+<script src="js/mod-outfit.js?v=26"></script>
+<script src="js/mod-beauty.js?v=26"></script>
+<script src="js/mod-deep.js?v=26"></script>
+<script src="js/mod-media.js?v=26"></script>
+<script src="js/china-rooster.js?v=26"></script>
+<script src="js/mod-travel.js?v=26"></script>
+<script src="js/mod-health.js?v=26"></script>
+<script src="js/mod-settings.js?v=26"></script>
+<script src="js/app.js?v=26"></script>
 </body>
 </html>
