@@ -111,23 +111,18 @@ input,textarea,select{outline:none;}
 /* ===== 侧边栏隐藏 + 全屏适配 ===== */
 .app-shell.sidebar-hidden .side-nav{display:none;flex:0 0 0;width:0;padding:0;border:none;box-shadow:none;overflow:hidden;}
 .app-shell.sidebar-hidden .main-area{width:100%;}
+.nav-toggle-wrap{position:fixed;left:6px;bottom:10px;z-index:25;display:flex;flex-direction:column;align-items:center;gap:1px;}
 .nav-toggle-btn{
   width:48px;height:44px;border-radius:13px;
   background:linear-gradient(135deg,#F2A340,#E08A22);border:2px solid #fff;
-  display:flex;align-items:center;justify-content:center;margin-top:8px;
+  display:flex;align-items:center;justify-content:center;
   transition:.25s;color:#fff;cursor:pointer;
   box-shadow:0 2px 8px rgba(224,138,34,.4);
   animation:pulseGlow 1.8s ease-in-out infinite;
 }
 .nav-toggle-btn:active{transform:scale(.88);}
 .nav-toggle-btn svg{width:24px;height:24px;transition:.3s transform;}
-.nav-toggle-lb{font-size:9px;color:var(--orange-d);font-weight:800;margin-top:1px;letter-spacing:.5px;}
-.app-shell.sidebar-hidden .nav-toggle-btn{
-  position:fixed;left:6px;bottom:10px;z-index:30;
-  background:linear-gradient(135deg,#F2A340,#E08A22);border:2px solid #fff;
-  box-shadow:0 4px 14px rgba(224,138,34,.55);
-  color:#fff;animation:pulseGlow 1.8s ease-in-out infinite;
-}
+.nav-toggle-lb{font-size:9px;color:var(--orange-d);font-weight:800;letter-spacing:.5px;text-shadow:0 1px 2px rgba(255,255,255,.9);}
 .app-shell.sidebar-hidden .nav-toggle-btn svg{transform:rotate(180deg);}
 @keyframes pulseGlow{
   0%{box-shadow:0 0 0 0 rgba(242,163,64,.55);}

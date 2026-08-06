@@ -13,7 +13,7 @@
 <script>
   // ===== 缓存版本强制校验（v15：彻底破旧缓存） =====
   (function(){
-    var VER = 'sanhua-v27';
+    var VER = 'sanhua-v28';
     var KEY = 'sanhua_sw_ver';
     if (localStorage.getItem(KEY) !== VER) {
       /* 版本变了 → 清掉可能残留的旧缓存标记 */
@@ -62,7 +62,7 @@
   })();
 </script>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="css/style.css?v=27">
+<link rel="stylesheet" href="css/style.css?v=28">
 </head>
 <body>
 
@@ -84,12 +84,16 @@
       <button class="nav-mini" id="btnSettings" title="设置">
         <span class="nav-mini-ico" id="settingsIco"></span>
       </button>
-      <button class="nav-toggle-btn" id="btnToggleSide" title="隐藏/显示侧边栏">
-        <span class="nav-toggle-ico" id="toggleIco"></span>
-      </button>
-      <div class="nav-toggle-lb">收起</div>
     </div>
   </nav>
+
+  <!-- 推拉侧边栏按钮：独立于侧边栏外，固定左下角，始终可见，避免隐藏后找不到 -->
+  <div class="nav-toggle-wrap">
+    <button class="nav-toggle-btn" id="btnToggleSide" title="收起/展开侧边栏">
+      <span class="nav-toggle-ico" id="toggleIco"></span>
+    </button>
+    <div class="nav-toggle-lb" id="toggleLb">收起</div>
+  </div>
 
   <!-- 主内容区 -->
   <main class="main-area">
@@ -125,21 +129,21 @@
 
 <div class="toast-wrap" id="toastWrap"></div>
 
-<script src="js/icons.js?v=27"></script>
-<script src="js/db.js?v=27"></script>
-<script src="js/ui.js?v=27"></script>
-<script src="js/mod-todo.js?v=27"></script>
-<script src="js/mod-money.js?v=27"></script>
-<script src="js/mod-eatsleep.js?v=27"></script>
-<script src="js/mod-sport.js?v=27"></script>
-<script src="js/mod-outfit.js?v=27"></script>
-<script src="js/mod-beauty.js?v=27"></script>
-<script src="js/mod-deep.js?v=27"></script>
-<script src="js/mod-media.js?v=27"></script>
-<script src="js/china-rooster.js?v=27"></script>
-<script src="js/mod-travel.js?v=27"></script>
-<script src="js/mod-health.js?v=27"></script>
-<script src="js/mod-settings.js?v=27"></script>
-<script src="js/app.js?v=27"></script>
+<script src="js/icons.js?v=28"></script>
+<script src="js/db.js?v=28"></script>
+<script src="js/ui.js?v=28"></script>
+<script src="js/mod-todo.js?v=28"></script>
+<script src="js/mod-money.js?v=28"></script>
+<script src="js/mod-eatsleep.js?v=28"></script>
+<script src="js/mod-sport.js?v=28"></script>
+<script src="js/mod-outfit.js?v=28"></script>
+<script src="js/mod-beauty.js?v=28"></script>
+<script src="js/mod-deep.js?v=28"></script>
+<script src="js/mod-media.js?v=28"></script>
+<script src="js/china-rooster.js?v=28"></script>
+<script src="js/mod-travel.js?v=28"></script>
+<script src="js/mod-health.js?v=28"></script>
+<script src="js/mod-settings.js?v=28"></script>
+<script src="js/app.js?v=28"></script>
 </body>
 </html>

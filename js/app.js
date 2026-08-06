@@ -71,7 +71,8 @@
       const next = !cur;
       DB.set('pref.hideSidebar', next);
       applyHideSidebar(next);
-      toast(next ? '侧边栏已隐藏，点左下角按钮恢复' : '侧边栏已恢复');
+      const lb = UI.$('#toggleLb'); if (lb) lb.textContent = next ? '展开' : '收起';
+      toast(next ? '侧边栏已隐藏，点左下角按钮可展开' : '侧边栏已恢复');
     };
 
     // 关闭弹层的通用处理
@@ -92,6 +93,7 @@
       document.documentElement.classList.add('hide-sidebar');
       const shell = document.querySelector('.app-shell');
       if (shell) shell.classList.add('sidebar-hidden');
+      const lb = UI.$('#toggleLb'); if (lb) lb.textContent = '展开';
     }
 
     // 阻止移动端长按选中/菜单对内容区的影响（仅图片可长按）
