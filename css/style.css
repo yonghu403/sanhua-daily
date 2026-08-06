@@ -104,7 +104,7 @@ input,textarea,select{outline:none;}
   background:var(--orange);border-radius:0 4px 4px 0;
 }
 .nav-item:active .ico{transform:scale(.92);}
-.nav-foot{padding:4px 0 2px;}
+.nav-foot{padding:6px 0 4px;display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:auto;}
 .nav-mini{width:34px;height:34px;border-radius:12px;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;}
 .nav-mini svg{width:22px;height:22px;}
 
@@ -112,20 +112,28 @@ input,textarea,select{outline:none;}
 .app-shell.sidebar-hidden .side-nav{display:none;flex:0 0 0;width:0;padding:0;border:none;box-shadow:none;overflow:hidden;}
 .app-shell.sidebar-hidden .main-area{width:100%;}
 .nav-toggle-btn{
-  width:42px;height:38px;border-radius:12px;
-  background:linear-gradient(135deg,#F2A340,#E08A22);border:1.5px solid var(--orange-d);
-  display:flex;align-items:center;justify-content:center;margin-top:6px;
-  transition:.25s;box-shadow:0 2px 8px rgba(224,138,34,.35);color:#fff;
+  width:48px;height:44px;border-radius:13px;
+  background:linear-gradient(135deg,#F2A340,#E08A22);border:2px solid #fff;
+  display:flex;align-items:center;justify-content:center;margin-top:8px;
+  transition:.25s;color:#fff;cursor:pointer;
+  box-shadow:0 2px 8px rgba(224,138,34,.4);
+  animation:pulseGlow 1.8s ease-in-out infinite;
 }
 .nav-toggle-btn:active{transform:scale(.88);}
-.nav-toggle-btn svg{width:22px;height:22px;transition:.3s transform;}
+.nav-toggle-btn svg{width:24px;height:24px;transition:.3s transform;}
+.nav-toggle-lb{font-size:9px;color:var(--orange-d);font-weight:800;margin-top:1px;letter-spacing:.5px;}
 .app-shell.sidebar-hidden .nav-toggle-btn{
-  position:fixed;left:4px;bottom:8px;z-index:30;
-  background:linear-gradient(135deg,#F2A340,#E08A22);border-color:var(--orange-d);
-  box-shadow:0 3px 12px rgba(224,138,34,.5);
-  color:#fff;
+  position:fixed;left:6px;bottom:10px;z-index:30;
+  background:linear-gradient(135deg,#F2A340,#E08A22);border:2px solid #fff;
+  box-shadow:0 4px 14px rgba(224,138,34,.55);
+  color:#fff;animation:pulseGlow 1.8s ease-in-out infinite;
 }
 .app-shell.sidebar-hidden .nav-toggle-btn svg{transform:rotate(180deg);}
+@keyframes pulseGlow{
+  0%{box-shadow:0 0 0 0 rgba(242,163,64,.55);}
+  70%{box-shadow:0 0 0 12px rgba(242,163,64,0);}
+  100%{box-shadow:0 0 0 0 rgba(242,163,64,0);}
+}
 /* 侧边栏内推拉按钮始终显示（即使sidebar-hidden也要在主内容区可见） */
 #btnToggleSide{position:relative;z-index:25;}
 
