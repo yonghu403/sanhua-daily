@@ -91,7 +91,7 @@
       } else {
         // v15：SW 脚本带版本号 + 禁用 HTTP 缓存，彻底破掉"旧 SW 循环喂旧文件"的死局
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=24', { updateViaCache: 'none' })
+          navigator.serviceWorker.register('./sw.js?v=25', { updateViaCache: 'none' })
             .then(reg => {
               // 已存在旧 SW 时，强制它立刻检查新版本
               reg.update().catch(()=>{});

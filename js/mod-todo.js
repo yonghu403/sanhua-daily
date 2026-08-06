@@ -3,7 +3,7 @@
   const { $, $$, esc, safeHTML, uid, ymd, today, parseYMD, WD, monthMatrix, weekOf, niceDate, toast, modal, confirmBox, pickImage } = UI;
 
   const PRI = { fast: { n: '快', c: 't-fast' }, mid: { n: '中', c: 't-mid' }, slow: { n: '慢', c: 't-slow' } };
-  const CAT = { body: { n: '身体', c: 't-body' }, mind: { n: '心理', c: 't-mind' }, soul: { n: '灵魂', c: 't-soul' } };
+  const CAT = { body: { n: '身体', c: 't-body', tip: '做你觉得舒服的事' }, mind: { n: '心理', c: 't-mind', tip: '做你觉得正确的事' }, soul: { n: '灵魂', c: 't-soul', tip: '做你觉得想要的事' } };
   const MOODS = {
     happy: { n: '开心', ico: 'moodHappy' },
     calm: { n: '平淡', ico: 'moodCalm' },
@@ -13,6 +13,9 @@
   let tab = 'work';
   let calY, calM, selDate;
   let draft = { pri: 'mid', cat: 'body' };
+  let multMode = false;   // 是否多选多日
+  let multiDates = [];    // 多选日期列表
+  let mY, mM;             // 多选月历的年/月
 
   /* ============ 数据 ============ */
   const getTodos = () => DB.get('todos', []);
@@ -53,6 +56,7 @@
 
   /* ============ 1. 做点正事 ============ */
   function renderWork(p) {
+    multMode = false; multiDates = []; mY = null; mM = null;
     p.innerHTML = `
       <div class="card">
         <div class="cal-head">
@@ -61,9 +65,13 @@
           <button class="cal-nav" id="nm">›</button>
         </div>
         <div class="cal-grid" id="calGrid"></div>
-        <div class="hint" style="margin-top:8px;display:flex;gap:10px;justify-content:center;">
+        <div class="hint" style="margin-top:8px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
           <span><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--orange);vertical-align:middle;"></i> 待完成</span>
           <span><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);vertical-align:middle;"></i> 已完成</span>
+          <span style="margin-left:4px;">|</span>
+          <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#E8F0E8;vertical-align:middle;border:1px solid #5F8F49;"></i> 身体</span>
+          <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#F0EBE0;vertical-align:middle;border:1px solid #E08A22;"></i> 心理</span>
+          <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#F5EEF0;vertical-align:middle;border:1px solid #B06A94;"></i> 灵魂</span>
         </div>
       </div>
 
@@ -81,6 +89,24 @@
           <div class="chip-group" id="catGrp">
             ${Object.keys(CAT).map(k => `<button class="chip ${draft.cat === k ? 'on' : ''}" data-c="${k}">${CAT[k].n}</button>`).join('')}
           </div>
+          <div class="hint" id="catTip" style="margin-top:5px;font-size:.72rem;color:#9A8874;line-height:1.6;min-height:1.2em;"></div>
+        </div>
+        <div style="margin-top:9px;">
+          <span class="lbl">日期</span>
+          <div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;">
+            <button class="chip sm ${!multMode ? 'on' : ''}" id="dtSingle">📌 仅此日</button>
+            <button class="chip sm ${multMode ? 'on' : ''}" id="dtMulti">📅 多选多日</button>
+            <span class="hint" id="dtSingleLbl" style="margin-left:auto;"></span>
+          </div>
+          <div id="multiDateBox" style="display:${multMode ? 'block' : 'none'};margin-top:8px;padding:8px 10px;background:#FFF9EF;border-radius:10px;border:1.5px dashed #E8D9BC;">
+            <div class="cal-head" style="margin-bottom:6px;">
+              <button class="cal-nav" id="mPm">‹</button>
+              <div class="m" id="mTitle" style="font-size:.82rem;"></div>
+              <button class="cal-nav" id="mNm">›</button>
+            </div>
+            <div class="cal-grid" id="mGrid" style="font-size:.78rem;"></div>
+            <div class="hint" style="margin-top:6px;text-align:center;" id="mCount"></div>
+          </div>
         </div>
         <button class="btn block" id="tdAdd" style="margin-top:11px;">${Icons.plus()}添加到 <span id="addDateLbl"></span></button>
       </div>
@@ -93,11 +119,15 @@
     $('#pm').onclick = () => { calM--; if (calM < 0) { calM = 11; calY--; } drawCal(); };
     $('#nm').onclick = () => { calM++; if (calM > 11) { calM = 0; calY++; } drawCal(); };
     $$('#priGrp .chip').forEach(c => c.onclick = () => { draft.pri = c.dataset.p; $$('#priGrp .chip').forEach(x => x.classList.toggle('on', x === c)); });
-    $$('#catGrp .chip').forEach(c => c.onclick = () => { draft.cat = c.dataset.c; $$('#catGrp .chip').forEach(x => x.classList.toggle('on', x === c)); });
+    $$('#catGrp .chip').forEach(c => c.onclick = () => { draft.cat = c.dataset.c; $$('#catGrp .chip').forEach(x => x.classList.toggle('on', x === c)); updateCatTip(); });
+    $('#dtSingle').onclick = () => { multMode = false; $('#dtSingle').classList.add('on'); $('#dtMulti').classList.remove('on'); $('#multiDateBox').style.display = 'none'; updateAddBtn(); };
+    $('#dtMulti').onclick = () => { multMode = true; $('#dtMulti').classList.add('on'); $('#dtSingle').classList.remove('on'); $('#multiDateBox').style.display = 'block'; if (mY == null) { const d = new Date(); mY = d.getFullYear(); mM = d.getMonth(); } drawMultiCal(); updateAddBtn(); };
+    $('#mPm').onclick = () => { mM--; if (mM < 0) { mM = 11; mY--; } drawMultiCal(); };
+    $('#mNm').onclick = () => { mM++; if (mM > 11) { mM = 0; mY++; } drawMultiCal(); };
     $('#tdAdd').onclick = addTodo;
     $('#tdText').addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
 
-    drawCal(); drawList();
+    drawCal(); updateCatTip(); drawList();
   }
 
   function drawCal() {
@@ -105,35 +135,129 @@
     const cells = monthMatrix(calY, calM);
     const todos = getTodos();
     const t = today();
+
+    // 按日期分组待办
+    const byDate = {};
+    todos.forEach(td => {
+      if (!byDate[td.date]) byDate[td.date] = [];
+      byDate[td.date].push(td);
+    });
+
     let html = WD.map(w => `<div class="cal-w">${w}</div>`).join('');
     cells.forEach(d => {
       if (!d) { html += `<div class="cal-d blank"></div>`; return; }
-      const list = todos.filter(x => x.date === d);
-      const undone = list.filter(x => !x.done).length;
-      const done = list.filter(x => x.done).length;
-      let dots = '';
-      if (undone) dots += `<i class="dot"></i>`;
-      if (done) dots += `<i class="dot done"></i>`;
-      html += `<div class="cal-d ${d === t ? 'today' : ''} ${d === selDate ? 'sel' : ''}" data-d="${d}">
-        ${parseYMD(d).getDate()}${dots ? `<div class="dots">${dots}</div>` : ''}</div>`;
+      const dayTodos = byDate[d] || [];
+      const undone = dayTodos.filter(x => !x.done).length;
+      const done = dayTodos.filter(x => x.done).length;
+
+      // 日期下方显示任务标签（最多3条，超出显示+N）
+      const show = dayTodos.slice(0, 3);
+      const extra = dayTodos.length - 3;
+      const tags = show.map(td => {
+        const cc = CAT_COLORS[td.cat] || CAT_COLORS.body;
+        const truncated = td.text.length > 4 ? td.text.slice(0, 4) + '..' : td.text;
+        return `<span style="display:inline-block;padding:0 4px;border-radius:6px;font-size:.58rem;line-height:1.5;background:${cc.bg};border:1px solid ${cc.border};color:${cc.text};margin:1px 2px 1px 0;white-space:nowrap;${td.done ? 'opacity:.45;text-decoration:line-through;' : ''}">${esc(truncated)}</span>`;
+      }).join('');
+      const extraTag = extra > 0 ? `<span style="font-size:.55rem;color:#bbb;">+${extra}</span>` : '';
+
+      html += `<div class="cal-d ${d === t ? 'today' : ''} ${d === selDate ? 'sel' : ''}" data-d="${d}" style="min-height:${dayTodos.length ? '56px' : 'auto'};padding-bottom:4px;overflow:visible;">
+        <div>${parseYMD(d).getDate()}${undone ? '<i class="dot"></i>' : ''}${done ? '<i class="dot done"></i>' : ''}</div>
+        ${dayTodos.length ? `<div style="margin-top:2px;display:flex;flex-wrap:wrap;align-items:center;">${tags}${extraTag}</div>` : ''}
+      </div>`;
     });
     $('#calGrid').innerHTML = html;
     $$('#calGrid .cal-d[data-d]').forEach(c => c.onclick = () => { selDate = c.dataset.d; drawCal(); drawList(); });
     const lbl = selDate === t ? '今天' : niceDate(selDate);
     $('#selLbl').textContent = '记到：' + lbl;
-    $('#addDateLbl').textContent = lbl;
     $('#listTitle').textContent = niceDate(selDate) + ' 的清单';
+    updateAddBtn();
   }
+
+  /* 分类注解：显示当前选中分类的提示语 */
+  function updateCatTip() {
+    const el = $('#catTip');
+    if (!el) return;
+    const c = CAT[draft.cat];
+    el.innerHTML = `<b style="color:${c.c === 't-body' ? '#5F8F49' : c.c === 't-mind' ? '#E08A22' : '#B06A94'};">${c.n}</b> — ${c.tip}`;
+  }
+
+  /* 月度总览已内嵌到 drawCal() 每个日期格子中，以下常量供格子内标签使用 */
+  const CAT_COLORS = {
+    body: { bg: '#E8F0E8', border: '#5F8F49', text: '#3D6B2E' },
+    mind: { bg: '#FDF6EC', border: '#E08A22', text: '#8B5E1E' },
+    soul: { bg: '#F8EEF4', border: '#B06A94', text: '#7D3B6A' }
+  };
 
   function addTodo() {
     const v = $('#tdText').value.trim();
     if (!v) { toast('先写点什么呀 🐾'); return; }
     const list = getTodos();
-    list.push({ id: uid(), date: selDate, text: v, pri: draft.pri, cat: draft.cat, done: false, ts: Date.now() });
-    setTodos(list);
+    if (multMode) {
+      if (!multiDates.length) { toast('先选好日期呀 📅'); return; }
+      const ds = multiDates.slice().sort();
+      ds.forEach(d => list.push({ id: uid(), date: d, text: v, pri: draft.pri, cat: draft.cat, done: false, ts: Date.now() }));
+      setTodos(list);
+      toast(`已同步到 ${ds.length} 天 🎉`);
+      multiDates = [];
+    } else {
+      list.push({ id: uid(), date: selDate, text: v, pri: draft.pri, cat: draft.cat, done: false, ts: Date.now() });
+      setTodos(list);
+      toast('已添加，冲鸭！');
+    }
     $('#tdText').value = '';
     drawCal(); drawList();
-    toast('已添加，冲鸭！');
+    if (multMode) drawMultiCal();
+    updateAddBtn();
+  }
+
+  /* 多选月历 */
+  function drawMultiCal() {
+    const t = today();
+    const mt = $('#mTitle'); if (mt) mt.textContent = `${mY} 年 ${mM + 1} 月`;
+    const cells = monthMatrix(mY, mM);
+    let html = WD.map(w => `<div class="cal-w" style="font-size:.7rem;">${w}</div>`).join('');
+    cells.forEach(d => {
+      if (!d) { html += `<div class="cal-d blank"></div>`; return; }
+      const sel = multiDates.includes(d);
+      const past = d < t;
+      html += `<div class="cal-d ${d === t ? 'today' : ''} ${sel ? 'sel' : ''} ${past ? 'past' : ''}" data-md="${d}" style="cursor:pointer;">${parseYMD(d).getDate()}</div>`;
+    });
+    const grid = $('#mGrid');
+    if (grid) {
+      grid.innerHTML = html;
+      $$('#mGrid .cal-d[data-md]').forEach(c => c.onclick = () => {
+        const d = c.dataset.md;
+        if (multiDates.includes(d)) multiDates = multiDates.filter(x => x !== d);
+        else multiDates.push(d);
+        drawMultiCal(); updateAddBtn();
+      });
+    }
+    const mc = $('#mCount');
+    if (mc) mc.textContent = multiDates.length ? `已选 ${multiDates.length} 天` : '点下方日期可多选（可跨月）';
+  }
+
+  /* 刷新「添加」按钮文案 */
+  function updateAddBtn() {
+    const btn = $('#tdAdd'); if (!btn) return;
+    const t = today();
+    if (multMode) {
+      const n = multiDates.length;
+      btn.innerHTML = `${Icons.plus()}添加到 <span>${n ? n + ' 天' : '（请选日期）'}</span>`;
+    } else {
+      const txt = selDate === t ? '今天' : niceDate(selDate);
+      btn.innerHTML = `${Icons.plus()}添加到 <span>${txt}</span>`;
+    }
+    const addLbl = $('#addDateLbl');
+    const singleLbl = $('#dtSingleLbl');
+    if (multMode) {
+      const n = multiDates.length;
+      if (addLbl) addLbl.textContent = n ? `${n} 天` : '（请选日期）';
+      if (singleLbl) singleLbl.textContent = '';
+    } else {
+      const txt = selDate === t ? '今天' : niceDate(selDate);
+      if (addLbl) addLbl.textContent = txt;
+      if (singleLbl) singleLbl.textContent = '记到：' + txt;
+    }
   }
 
   function drawList() {
