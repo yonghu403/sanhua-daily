@@ -197,12 +197,12 @@
     if (multMode) {
       if (!multiDates.length) { toast('先选好日期呀 📅'); return; }
       const ds = multiDates.slice().sort();
-      ds.forEach(d => list.push({ id: uid(), date: d, text: v, pri: draft.pri, cat: draft.cat, done: false, ts: Date.now() }));
+      ds.forEach(d => list.push({ id: uid(), date: d, text: v, pri: draft.pri, cat: draft.cat, done: false, ts: Date.now(), startTime: '', progress: 0, note: '' }));
       setTodos(list);
       toast(`已同步到 ${ds.length} 天 🎉`);
       multiDates = [];
     } else {
-      list.push({ id: uid(), date: selDate, text: v, pri: draft.pri, cat: draft.cat, done: false, ts: Date.now() });
+      list.push({ id: uid(), date: selDate, text: v, pri: draft.pri, cat: draft.cat, done: false, ts: Date.now(), startTime: '', progress: 0, note: '' });
       setTodos(list);
       toast('已添加，冲鸭！');
     }
@@ -210,6 +210,57 @@
     drawCal(); drawList();
     if (multMode) drawMultiCal();
     updateAddBtn();
+  }
+
+  /* 编辑任务备注（时间 / 进度 / 文字备注） */
+  function editTodoDetail(id) {
+    const all = getTodos();
+    const t = all.find(x => x.id === id);
+    if (!t) return;
+    modal.open('任务详情', `
+      <div style="margin-bottom:12px;">
+        <div class="lbl" style="margin-bottom:6px;">📝 任务</div>
+        <div style="font-size:15px;font-weight:700;color:var(--brown);">${esc(t.text)}</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div class="lbl" style="margin-bottom:6px;">🕐 开始时间</div>
+        <input type="time" id="detailTime" class="field" value="${t.startTime || ''}" style="font-size:16px;padding:10px;" max="23:59">
+        <div class="hint" style="margin-top:4px;">选择今天计划开始的时间（24 小时制）</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div class="lbl" style="margin-bottom:6px;">📊 完成进度 <span id="detailPctLbl" style="color:var(--orange);font-weight:700;">${t.progress || 0}%</span></div>
+        <input type="range" id="detailProgress" min="0" max="100" value="${t.progress || 0}" style="width:100%;accent-color:var(--orange);">
+        <div style="display:flex;justify-content:space-between;margin-top:2px;">
+          <span class="hint">0%</span><span class="hint">50%</span><span class="hint">100%</span>
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div class="lbl" style="margin-bottom:6px;">💬 文字备注</div>
+        <textarea id="detailNote" class="field" placeholder="写点补充说明…" maxlength="300" rows="3" style="resize:vertical;font-size:13px;">${esc(t.note || '')}</textarea>
+      </div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn ghost grow" id="detailCancel">取消</button>
+        <button class="btn grow" id="detailSave">保存备注</button>
+      </div>`, (b) => {
+      const timeInp = $('#detailTime', b);
+      const progInp = $('#detailProgress', b);
+      const noteInp = $('#detailNote', b);
+      const pctLbl = $('#detailPctLbl', b);
+
+      progInp.oninput = () => { pctLbl.textContent = progInp.value + '%'; };
+
+      $('#detailCancel', b).onclick = () => modal.close();
+      $('#detailSave', b).onclick = () => {
+        const all2 = getTodos();
+        const i = all2.findIndex(x => x.id === id);
+        if (i < 0) return;
+        all2[i].startTime = timeInp.value || '';
+        all2[i].progress = Number(progInp.value) || 0;
+        all2[i].note = noteInp.value.trim();
+        setTodos(all2);
+        modal.close(); drawList(); toast('备注已保存 🐾');
+      };
+    });
   }
 
   /* 多选月历 */
@@ -271,18 +322,36 @@
       return;
     }
     $('#doneCnt').textContent = `${list.filter(x => x.done).length}/${list.length} 完成`;
-    box.innerHTML = list.map(t => `
-      <div class="todo-item ${t.done ? 'done' : ''}" data-id="${t.id}">
+    box.innerHTML = list.map(t => {
+      const timeStr = t.startTime || '';
+      const prog = t.progress || 0;
+      const noteStr = t.note || '';
+      /* 进度条颜色 */
+      let progColor = 'var(--orange)';
+      if (prog >= 100) progColor = 'var(--green)';
+      else if (prog >= 70) progColor = '#5F8F49';
+      else if (prog >= 40) progColor = 'var(--orange)';
+      return `<div class="todo-item ${t.done ? 'done' : ''}" data-id="${t.id}">
         <div class="circle" data-act="tg"></div>
-        <div class="grow">
+        <div class="grow" data-act="detail">
           <div class="todo-txt">${esc(t.text)}</div>
+          ${noteStr ? `<div class="todo-note">${esc(noteStr)}</div>` : ''}
           <div class="todo-meta">
             <span class="tag ${PRI[t.pri].c}">${PRI[t.pri].n}</span>
             <span class="tag ${CAT[t.cat].c}">${CAT[t.cat].n}</span>
           </div>
         </div>
+        <div class="todo-detail-side">
+          ${timeStr ? `<div class="todo-time">${timeStr}</div>` : '<div class="todo-time todo-time-empty"></div>'}
+          <div class="todo-prog-wrap">
+            <div class="todo-prog-bar" style="background:linear-gradient(90deg,${progColor},${progColor});width:${prog}%;"></div>
+            <span class="todo-prog-txt">${prog}%</span>
+          </div>
+          <button class="todo-note-btn" data-act="detail">${t.note ? '✎ 已记' : '＋ 备注'}</button>
+        </div>
         <div class="todo-del" data-act="del">×</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     box.onclick = (e) => {
       const it = e.target.closest('.todo-item'); if (!it) return;
       const act = e.target.dataset.act; if (!act) return;
@@ -290,6 +359,7 @@
       if (i < 0) return;
       if (act === 'tg') { all[i].done = !all[i].done; setTodos(all); drawCal(); drawList(); }
       if (act === 'del') { all.splice(i, 1); setTodos(all); drawCal(); drawList(); toast('已删除'); }
+      if (act === 'detail') { editTodoDetail(it.dataset.id); }
     };
   }
 

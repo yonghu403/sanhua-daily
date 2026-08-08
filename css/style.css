@@ -361,6 +361,30 @@ select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 .todo-meta{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
 .todo-del{width:22px;height:22px;flex:0 0 22px;color:#C4AE93;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;}
 
+/* ===== 任务备注（时间 / 进度 / 文字备注） ===== */
+.todo-note{font-size:12px;color:#A89880;line-height:1.5;margin-top:3px;word-break:break-word;}
+.todo-detail-side{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:2px 4px 2px 6px;min-width:48px;}
+.todo-time{font-size:11.5px;font-weight:700;color:var(--orange-d);white-space:nowrap;line-height:1;}
+.todo-time-empty{visibility:hidden;}
+.todo-prog-wrap{position:relative;width:44px;height:7px;background:#EDE3D0;border-radius:4px;overflow:hidden;min-width:44px;}
+.todo-prog-bar{height:100%;border-radius:4px;transition:width .35s ease;min-width:0;}
+.todo-prog-txt{font-size:9px;color:#B5A58D;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:600;line-height:1;}
+/* 备注按钮：进度条下方的段方圆虚线按钮 */
+.todo-note-btn{
+  margin-top:5px;padding:3px 9px;
+  font-size:10.5px;font-weight:700;line-height:1.5;white-space:nowrap;
+  color:var(--orange-d);
+  background:transparent;
+  border:1.6px dashed var(--orange-d);
+  border-radius:9px;
+  transition:.15s;
+}
+.todo-note-btn:hover{background:color-mix(in srgb,var(--orange-d) 12%,transparent);}
+.todo-note-btn:active{background:color-mix(in srgb,var(--orange-d) 22%,transparent);transform:scale(.95);}
+.todo-item .grow[data-act="detail"]{cursor:pointer;border-radius:8px;margin:-3px -4px;padding:3px 4px;transition:.15s;}
+.todo-item .grow[data-act="detail"]:hover{background:rgba(242,163,64,.07);}
+.todo-item .grow[data-act="detail"]:active{background:rgba(242,163,64,.12);}
+
 /* ===== 聊天 ===== */
 .chat-box{
   height:270px;overflow-y:auto;background:linear-gradient(180deg,#FFFBF0,#FDF4E3);
@@ -512,6 +536,24 @@ select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 .nutri-bar{height:11px;border-radius:6px;background:var(--cream);overflow:hidden;display:flex;border:1.2px solid var(--line);}
 .nutri-bar i{display:block;height:100%;}
 .food-item{display:flex;align-items:center;gap:9px;padding:8px 9px;background:var(--cream);border:1.6px solid var(--line);border-radius:13px;margin-bottom:6px;}
+
+/* ===== 饮食汇总图表（柱状图 + 日历热力） ===== */
+.mini-chart{display:flex;align-items:flex-end;gap:5px;height:104px;padding:6px 2px 2px;overflow-x:auto;}
+.bc-col{flex:1 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:24px;height:100%;}
+.bc-pair{display:flex;align-items:flex-end;gap:3px;}
+.bc-bar{width:14px;max-width:15px;border-radius:5px;overflow:hidden;display:flex;flex-direction:column-reverse;position:relative;transition:height .35s ease;min-height:2px;background:rgba(140,102,71,.08);}
+.bc-seg{width:100%;}
+.bc-val{position:absolute;top:-11px;left:50%;transform:translateX(-50%);font-size:8px;color:#7a6a55;font-weight:700;white-space:nowrap;}
+.bc-lbl{font-size:9.5px;color:#A89880;margin-top:3px;line-height:1;}
+.cal-heat{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.hm-w{font-size:9px;color:#A89880;text-align:center;font-weight:600;padding-bottom:1px;}
+.hm-cell{aspect-ratio:1/1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#7a6a55;border:1px solid rgba(140,102,71,.12);}
+.hm-cell.blank{background:transparent;border:none;}
+.hm-cell[title]:hover{outline:2px solid var(--orange);}
+/* 热量平衡公式框 */
+.fit-calc-box{background:var(--cream);border:1.5px solid var(--line);border-radius:11px;padding:10px 11px;margin-top:8px;}
+.fit-balance{border:1.6px solid;background:#fff;border-radius:10px;padding:7px 10px;margin-top:8px;font-size:12.5px;font-weight:700;line-height:1.4;}
+.bc-bal{font-size:9px;font-weight:700;margin-top:2px;line-height:1;}
 .food-ico{width:32px;height:32px;flex:0 0 32px;border-radius:11px;background:#fff;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:18px;}
 .stamp-btn{
   width:66px;height:66px;flex:0 0 66px;border-radius:50%;
