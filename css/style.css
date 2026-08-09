@@ -238,6 +238,8 @@ select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 .chip.on{background:var(--orange);border-color:var(--orange);color:#fff;}
 .chip.sm{padding:3px 8px;font-size:10.5px;border-radius:11px;}
 .chip-group{display:flex;flex-wrap:wrap;gap:6px;}
+.gym-seg{display:flex;gap:8px;margin-bottom:11px;}
+.gym-seg .chip{flex:1;text-align:center;justify-content:center;font-weight:800;padding:9px 6px;border-radius:12px;}
 
 /* 走走停停：地图框固定尺寸，缩放只在框内发生，外部 UI 不受影响 */
 .travel-map{
@@ -340,6 +342,7 @@ select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 .cal-d .dot{width:4px;height:4px;border-radius:50%;background:var(--orange);}
 .cal-d .dot.done{background:var(--green);}
 .cal-d .mini{font-size:8.5px;font-weight:700;line-height:1;margin-top:1px;opacity:.85;}
+.cal-d.has-plan .mini{color:var(--green);}
 .cal-d .emo{font-size:13px;line-height:1;}
 .cal-tags{display:flex;flex-direction:column;gap:1px;margin-top:2px;}
 

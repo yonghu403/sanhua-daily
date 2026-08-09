@@ -116,6 +116,13 @@
   const setLogs = (v) => DB.set('sport.logs', v);
   const getDone = () => DB.get('sport.done', { gym: {}, posture: {}, health: {} });
   const setDone = (v) => DB.set('sport.done', v);
+  const getCustom = () => {
+    let c = DB.get('sport.gymCustom', null);
+    if (c == null) { c = GYM_TEMPLATES[gymTplIdx()].map(d => ({ theme: d.theme, items: d.items.slice() })); DB.set('sport.gymCustom', c); }
+    c.forEach(d => { if (!d.items) d.items = []; if (d.theme === undefined) d.theme = ''; });
+    return c;
+  };
+  const setCustom = (v) => DB.set('sport.gymCustom', v);
 
   function toggleDone(type, key) {
     const d = getDone(); d[type] = d[type] || {};
@@ -229,12 +236,20 @@
 
   function drawProg() {
     const wd = weekDates(); const gi = gymTplIdx();
-    const gymTotal = GYM_TEMPLATES[gi].length * 3;
+    const gymMode = DB.get('sport.gymMode', 'auto');
+    let gymTotal, g = 0;
+    if (gymMode === 'custom') {
+      const cust = DB.get('sport.gymCustom', null);
+      gymTotal = cust ? cust.reduce((a, d) => a + (d.items ? d.items.length : 0), 0) : 0;
+      wd.forEach(d => (getDone().gym[d] || []).forEach(k => { if (k.indexOf('c_') === 0) g++; }));
+    } else {
+      gymTotal = GYM_TEMPLATES[gi].length * 3;
+      wd.forEach(d => (getDone().gym[d] || []).forEach(k => { if (k.indexOf('g' + gi + '_') === 0) g++; }));
+    }
     const posTotal = DB.get('sport.posture', DEF_POSTURE).length;
     const hTotal = 7 * 3;
-    let g = 0, ps = 0, h = 0;
+    let ps = 0, h = 0;
     wd.forEach(d => {
-      (getDone().gym[d] || []).forEach(k => { if (k.indexOf('g' + gi + '_') === 0) g++; });
       (getDone().posture[d] || []).forEach(() => { ps++; });
       (getDone().health[d] || []).forEach(k => { if (k.indexOf('h_') === 0) h++; });
     });
@@ -252,18 +267,51 @@
     }).join('');
   }
 
+  /* 取某天（d）的计划勾选记录；filterToday=true 时只取当天那列（用于「今日记录」） */
+  function planRecordsForDate(d, filterToday) {
+    const out = [];
+    const done = getDone();
+    const gi = gymTplIdx();
+    const gymMode = DB.get('sport.gymMode', 'auto');
+    const ti = todayIdx();
+    (done.gym[d] || []).forEach(k => {
+      let nm = '';
+      if (gymMode === 'custom') { const m = /^c_(\d+)_(\d+)$/.exec(k); if (m) { if (filterToday && +m[1] !== ti) return; const x = getCustom()[+m[1]]; nm = x ? x.items[+m[2]] : ''; } }
+      else { const m = new RegExp('^g' + gi + '_(\\d+)_(\\d+)$').exec(k); if (m) { if (filterToday && +m[1] !== ti) return; nm = GYM_TEMPLATES[gi][+m[1]].items[+m[2]]; } }
+      if (nm) out.push({ ico: '💪', cat: '增肌', name: nm });
+    });
+    (done.posture[d] || []).forEach(k => {
+      const m = /^p_(.+)$/.exec(k); if (m) { const p = DB.get('sport.posture', DEF_POSTURE).find(x => x.id === m[1]); if (p) out.push({ ico: '🧍', cat: '体态', name: p.problem }); }
+    });
+    (done.health[d] || []).forEach(k => {
+      const m = /^h_(\d+)_(\d+)$/.exec(k); if (m) { if (filterToday && +m[1] !== ti) return; const pl = DB.get('sport.healthPlan', DEF_HEALTH_PLAN); const it = pl[+m[1]] && pl[+m[1]].items[+m[2]]; if (it) out.push({ ico: '🧘', cat: '养生', name: it }); }
+    });
+    return out;
+  }
+
   function drawSumToday() {
     const t = today();
     const arr = getLogs()[t] || [];
+    const recs = planRecordsForDate(t, true);
     const box = $('#spToday');
-    if (!arr.length) box.innerHTML = `<div class="empty"><div class="e-ico">${Icons.rabbit()}</div>今天还没动～<br>哪怕散步 10 分钟也算数！</div>`;
-    else box.innerHTML = arr.map(x => `
+    if (!arr.length && !recs.length) {
+      box.innerHTML = `<div class="empty"><div class="e-ico">${Icons.rabbit()}</div>今天还没动～<br>哪怕散步 10 分钟也算数！</div>`;
+      return;
+    }
+    let html = arr.map(x => `
       <div class="food-item" data-id="${x.id}">
         <div class="food-ico">🏃</div>
         <div class="grow"><div style="font-size:13px;font-weight:700;">${esc(x.name)}${x.mins ? ` · ${x.mins} 分钟` : ''}</div>
         <div class="hint">${x.time || ''}${x.note ? ' · ' + esc(x.note) : ''}</div></div>
         <span class="todo-del" data-act="del">×</span>
       </div>`).join('');
+    html += recs.map(r => `
+      <div class="food-item">
+        <div class="food-ico">${r.ico}</div>
+        <div class="grow"><div style="font-size:13px;font-weight:700;">${esc(r.name)}</div>
+        <div class="hint">来自今日计划勾选 · ${r.cat}</div></div>
+      </div>`).join('');
+    box.innerHTML = html;
     box.onclick = (e) => {
       if (e.target.dataset.act !== 'del') return;
       const id = e.target.closest('.food-item').dataset.id;
@@ -271,6 +319,11 @@
       if (!all[t].length) delete all[t];
       setLogs(all); drawSumToday(); drawSpCal();
     };
+  }
+
+  function dayHasPlan(d) {
+    const done = getDone();
+    return (done.gym[d] && done.gym[d].length) || (done.posture[d] && done.posture[d].length) || (done.health[d] && done.health[d].length);
   }
 
   function drawSpCal() {
@@ -282,26 +335,34 @@
     let html = WD.map(w => `<div class="cal-w">${w}</div>`).join('');
     cells.forEach(d => {
       if (!d) { html += `<div class="cal-d blank"></div>`; return; }
-      const arr = logs[d];
-      if (arr && arr.length) { days++; mins += arr.reduce((a, b) => a + Number(b.mins || 0), 0); }
-      html += `<div class="cal-d ${d === t ? 'today' : ''}" data-d="${d}">
-        ${parseYMD(d).getDate()}${arr && arr.length ? `<span class="mini">🐾${arr.reduce((a, b) => a + Number(b.mins || 0), 0) || ''}</span>` : ''}</div>`;
+      const arr = logs[d] || [];
+      const hasPlan = dayHasPlan(d);
+      const active = arr.length || hasPlan;
+      if (arr.length) { days++; mins += arr.reduce((a, b) => a + Number(b.mins || 0), 0); }
+      const paw = active ? `<span class="mini">🐾${arr.reduce((a, b) => a + Number(b.mins || 0), 0) || ''}</span>` : '';
+      const cls = (d === t ? 'today ' : '') + (hasPlan && !arr.length ? 'has-plan' : '');
+      html += `<div class="cal-d ${cls}" data-d="${d}">
+        ${parseYMD(d).getDate()}${paw}</div>`;
     });
     $('#spCal').innerHTML = html;
     $('#stDays').textContent = days; $('#stMins').textContent = mins;
-    let streak = 0; const d = new Date();
+    let streak = 0; const d0 = new Date();
     for (; ;) {
-      const k = ymd(d);
-      if (logs[k] && logs[k].length) { streak++; d.setDate(d.getDate() - 1); }
+      const k = ymd(d0);
+      if ((logs[k] && logs[k].length) || dayHasPlan(k)) { streak++; d0.setDate(d0.getDate() - 1); }
       else break;
       if (streak > 999) break;
     }
     $('#stStreak').textContent = streak;
     $$('#spCal .cal-d[data-d]').forEach(c => c.onclick = () => {
-      const arr = logs[c.dataset.d] || [];
-      modal.open(c.dataset.d + ' 的运动', arr.length
-        ? arr.map(x => `<div class="rec-item"><div class="rec-ico">🏃</div><div class="rec-main"><div class="t">${esc(x.name)}${x.mins ? ' · ' + x.mins + '分钟' : ''}</div><div class="s">${esc(x.note || '')}</div></div></div>`).join('')
-        : `<div class="empty"><div class="e-ico">${Icons.empty()}</div>这天没有记录</div>`);
+      const d = c.dataset.d;
+      const arr = logs[d] || [];
+      const recs = planRecordsForDate(d, false);
+      const logHtml = arr.map(x => `<div class="rec-item"><div class="rec-ico">🏃</div><div class="rec-main"><div class="t">${esc(x.name)}${x.mins ? ' · ' + x.mins + '分钟' : ''}</div><div class="s">${esc(x.note || '')}</div></div></div>`).join('');
+      const planHtml = recs.map(r => `<div class="rec-item"><div class="rec-ico">${r.ico}</div><div class="rec-main"><div class="t">${esc(r.name)}</div><div class="s">来自计划勾选 · ${r.cat}</div></div></div>`).join('');
+      const sep = (logHtml && planHtml) ? `<div style="font-size:11px;color:var(--brown-soft);font-weight:700;margin:9px 0 4px;">— 计划勾选 —</div>` : '';
+      const body = logHtml + sep + planHtml;
+      modal.open(d + ' 的记录', body || `<div class="empty"><div class="e-ico">${Icons.empty()}</div>这天没有记录</div>`);
     });
   }
 
@@ -393,12 +454,22 @@
     const tpl = GYM_TEMPLATES[gi];
     const ti = todayIdx();
     const doneGym = getDone().gym[today()] || [];
+    const gymMode = DB.get('sport.gymMode', 'auto');
     p.innerHTML = `
       <div class="card">
-        <div class="card-title"><span class="ci">${Icons.dumbbell()}</span>本周训练排班 <small>第 ${gi + 1} 套 · 每周自动轮换</small>
-          <button class="btn ghost sm" id="gShuffle" style="float:right;margin-top:-2px;">${Icons.dice()}换一套</button></div>
-        <div id="gymList"></div>
-        <div class="hint" style="margin-top:6px;">建议：同一肌群间隔 48 小时；每个动作留 1-2 次 RIR（力竭余量）；蛋白质每天每公斤体重 1.6g。勾选完成的动作会同步到汇总。</div>
+        <div class="card-title"><span class="ci">${Icons.dumbbell()}</span>本周训练排班
+          ${gymMode === 'auto'
+            ? `<button class="btn ghost sm" id="gShuffle" style="float:right;margin-top:-2px;">🎲 换一套</button>`
+            : `<button class="btn ghost sm" id="gReset" style="float:right;margin-top:-2px;">🔄 用自动填充</button>`}
+        </div>
+        <div class="gym-seg">
+          <div class="chip ${gymMode === 'auto' ? 'on' : ''}" data-m="auto">🤖 自动排班</div>
+          <div class="chip ${gymMode === 'custom' ? 'on' : ''}" data-m="custom">✏️ 我的排班</div>
+        </div>
+        <div id="gymPane"></div>
+        <div class="hint" style="margin-top:6px;">${gymMode === 'auto'
+          ? '建议：同一肌群间隔 48 小时；每个动作留 1-2 次 RIR（力竭余量）；蛋白质每天每公斤体重 1.6g。勾选完成的动作会同步到汇总。'
+          : '按自己的需求与意愿安排这一周。点「✏️编辑」改每天的主题与项目，勾选完成会同步到汇总打卡。'}</div>
       </div>
       <div class="card">
         <div class="card-title"><span class="ci">${Icons.star()}</span>增肌要点 & 吃什么</div>
@@ -412,20 +483,78 @@
           <div class="acc-b">· 热量缺口 300–500 kcal 即可，不要极端。\n· 蛋白质维持高位（保肌肉），碳水优先练后吃。\n· 每周体重降 0.5–1% 为健康速度，掉太快容易掉肌肉。</div></div>
       </div>`;
 
-    $('#gymList').innerHTML = tpl.map((s, i) => `
+    const pane = $('#gymPane');
+    $$('.gym-seg .chip').forEach(el => el.onclick = () => {
+      if (el.dataset.m === gymMode) return;
+      DB.set('sport.gymMode', el.dataset.m);
+      renderGym(p); drawProg();
+    });
+
+    if (gymMode === 'auto') {
+      pane.innerHTML = `<div id="gymList"></div>`;
+      $('#gymList').innerHTML = tpl.map((s, i) => `
+        <div class="plan-day ${i === ti ? 'today' : ''}">
+          <div class="pd">${DAYS[i].replace('周', '')}</div>
+          <div class="grow">
+            <div style="font-size:13px;font-weight:800;margin-bottom:5px;">${esc(s.theme)}${i === ti ? ' <span class="tag t-fast">今天</span>' : ''}</div>
+            ${s.items.map((it, si) => { const key = 'g' + gi + '_' + i + '_' + si; const on = doneGym.indexOf(key) >= 0; return `
+              <label class="wp-item ${on ? 'wp-done' : ''}">
+                <span class="wp-key">${'abc'[si]}</span>
+                <span class="wp-txt">${esc(it)}</span>
+                <span class="tick ${on ? 'on' : ''}" data-key="${key}"></span>
+              </label>`; }).join('')}
+          </div>
+        </div>`).join('');
+      $$('#gymList .tick').forEach(el => el.onclick = (e) => {
+        e.preventDefault();
+        toggleDone('gym', el.dataset.key);
+        const on = isDone('gym', el.dataset.key);
+        el.classList.toggle('on', on);
+        el.closest('.wp-item').classList.toggle('wp-done', on);
+        drawProg();
+      });
+      $('#gShuffle').onclick = () => {
+        DB.set('sport.gymTpl', (gymTplIdx() + 1) % GYM_TEMPLATES.length);
+        renderGym(p); toast('已换一套本周排班');
+      };
+    } else {
+      pane.innerHTML = `<div id="gymCustomList"></div>`;
+      drawGymCustom();
+      $('#gReset').onclick = async () => {
+        if (!(await confirmBox('用当前自动排班覆盖「我的排班」？'))) return;
+        const c = GYM_TEMPLATES[gymTplIdx()].map(d => ({ theme: d.theme, items: d.items.slice() }));
+        setCustom(c); drawGymCustom(); drawProg(); toast('已用自动排班填充');
+      };
+    }
+
+    $$('#spPane .acc').forEach(a => a.querySelector('.acc-h').onclick = () => a.classList.toggle('open'));
+  }
+
+  /* 自定义排班（与自动排班并列，可自由编辑） */
+  function drawGymCustom() {
+    const cust = getCustom();
+    const ti = todayIdx();
+    const doneCust = getDone().gym[today()] || [];
+    const pane = $('#gymCustomList');
+    if (!pane) return;
+    pane.innerHTML = cust.map((s, i) => `
       <div class="plan-day ${i === ti ? 'today' : ''}">
         <div class="pd">${DAYS[i].replace('周', '')}</div>
         <div class="grow">
-          <div style="font-size:13px;font-weight:800;margin-bottom:5px;">${esc(s.theme)}${i === ti ? ' <span class="tag t-fast">今天</span>' : ''}</div>
-          ${s.items.map((it, si) => { const key = 'g' + gi + '_' + i + '_' + si; const on = doneGym.indexOf(key) >= 0; return `
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+            <div style="font-size:13px;font-weight:800;flex:1;">${esc(s.theme || '（未安排）')}${i === ti ? ' <span class="tag t-fast">今天</span>' : ''}</div>
+            <button class="btn ghost sm" data-edit="${i}">✏️编辑</button>
+          </div>
+          ${s.items.length ? s.items.map((it, si) => { const key = 'c_' + i + '_' + si; const on = doneCust.indexOf(key) >= 0; return `
             <label class="wp-item ${on ? 'wp-done' : ''}">
-              <span class="wp-key">${'abc'[si]}</span>
+              <span class="wp-key">${'abc'[si] || (si + 1)}</span>
               <span class="wp-txt">${esc(it)}</span>
               <span class="tick ${on ? 'on' : ''}" data-key="${key}"></span>
-            </label>`; }).join('')}
+            </label>`; }).join('') : '<div class="hint" style="padding:3px 0 5px;">点「✏️编辑」添加今天的项目</div>'}
         </div>
       </div>`).join('');
-    $$('#gymList .tick').forEach(el => el.onclick = (e) => {
+
+    $$('#gymCustomList .tick').forEach(el => el.onclick = (e) => {
       e.preventDefault();
       toggleDone('gym', el.dataset.key);
       const on = isDone('gym', el.dataset.key);
@@ -433,11 +562,30 @@
       el.closest('.wp-item').classList.toggle('wp-done', on);
       drawProg();
     });
-    $$('#spPane .acc').forEach(a => a.querySelector('.acc-h').onclick = () => a.classList.toggle('open'));
-    $('#gShuffle').onclick = () => {
-      DB.set('sport.gymTpl', (gymTplIdx() + 1) % GYM_TEMPLATES.length);
-      renderGym(p); toast('已换一套本周排班');
-    };
+    $$('#gymCustomList [data-edit]').forEach(b => b.onclick = () => editGymDay(Number(b.dataset.edit)));
+  }
+
+  function editGymDay(i) {
+    const cust = getCustom();
+    modal.open(DAYS[i] + ' · 我的训练', `
+      <span class="lbl">主题（如：臀腿日 / 休息日）</span>
+      <input class="field" id="gDayTheme" value="${esc(cust[i].theme || '')}" style="margin-bottom:9px;">
+      <span class="lbl">训练项目（每行一项）</span>
+      <textarea class="field" id="gDayItems" style="min-height:150px;">${esc(cust[i].items.join('\n'))}</textarea>
+      <button class="btn ghost sm" id="gDayAdd" style="margin-top:8px;">＋ 快速加一行</button>
+      <button class="btn block" id="gDaySave" style="margin-top:10px;">保存</button>
+    `, (b) => {
+      $('#gDaySave', b).onclick = () => {
+        const its = $('#gDayItems', b).value.split('\n').map(x => x.trim()).filter(Boolean);
+        cust[i] = { theme: $('#gDayTheme', b).value.trim() || '未命名', items: its };
+        setCustom(cust); modal.close(); drawGymCustom(); drawProg(); toast('已保存');
+      };
+      $('#gDayAdd', b).onclick = () => {
+        const ta = $('#gDayItems', b);
+        ta.value = (ta.value && !ta.value.endsWith('\n') ? ta.value + '\n' : ta.value) + '新项目';
+        ta.focus();
+      };
+    });
   }
 
   /* ============ 长寿养生 ============ */
