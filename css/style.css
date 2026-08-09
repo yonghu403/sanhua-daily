@@ -241,6 +241,18 @@ select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 .gym-seg{display:flex;gap:8px;margin-bottom:11px;}
 .gym-seg .chip{flex:1;text-align:center;justify-content:center;font-weight:800;padding:9px 6px;border-radius:12px;}
 
+/* 增肌塑形 - 体重记录图表 */
+.wstat{display:flex;flex-wrap:wrap;gap:5px 14px;font-size:11px;color:#8a7a63;margin:9px 0 4px;}
+.wstat b{color:#5a4a35;font-size:12px;}
+.wchart{position:relative;display:flex;align-items:flex-end;gap:3px;padding-top:4px;overflow:visible;border-bottom:1.5px solid var(--line);}
+.wcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;}
+.wbar{width:74%;max-width:30px;border-radius:5px 5px 2px 2px;font-size:8.5px;color:#fff;font-weight:700;
+  display:flex;align-items:flex-start;justify-content:center;padding-top:2px;transition:height .35s ease;min-height:2px;}
+.wbar.wempty{background:var(--cream);border:1px dashed var(--line);height:6px !important;}
+.wlbl{font-size:8.5px;color:#9a8a72;margin-top:3px;white-space:nowrap;line-height:1;}
+.wavg{position:absolute;left:0;right:0;height:0;border-top:1.6px dashed #C98A2E;pointer-events:none;}
+.wavg span{position:absolute;right:0;top:-9px;font-size:8.5px;color:#C98A2E;font-weight:700;background:var(--card);padding:0 2px;}
+
 /* 走走停停：地图框固定尺寸，缩放只在框内发生，外部 UI 不受影响 */
 .travel-map{
   position:relative;

@@ -116,6 +116,8 @@
   const setLogs = (v) => DB.set('sport.logs', v);
   const getDone = () => DB.get('sport.done', { gym: {}, posture: {}, health: {} });
   const setDone = (v) => DB.set('sport.done', v);
+  const getWeights = () => DB.get('sport.weights', []);
+  const setWeights = (v) => DB.set('sport.weights', v);
   const getCustom = () => {
     let c = DB.get('sport.gymCustom', null);
     if (c == null) { c = GYM_TEMPLATES[gymTplIdx()].map(d => ({ theme: d.theme, items: d.items.slice() })); DB.set('sport.gymCustom', c); }
@@ -472,6 +474,22 @@
           : '按自己的需求与意愿安排这一周。点「✏️编辑」改每天的主题与项目，勾选完成会同步到汇总打卡。'}</div>
       </div>
       <div class="card">
+        <div class="card-title"><span class="ci">⚖️</span>体重记录
+          <button class="btn ghost sm" id="wRecBtn" style="float:right;margin-top:-2px;">💾 记录今日</button>
+        </div>
+        <div class="row" style="gap:6px;align-items:flex-end;margin-bottom:9px;">
+          <div class="grow"><span class="lbl">今日体重 (kg)</span>
+            <input class="field" id="wInp" type="number" inputmode="decimal" step="0.1" placeholder="如 55.5" style="margin-top:4px;">
+          </div>
+        </div>
+        <div class="gym-seg" id="wSeg">
+          <div class="chip on" data-r="week">本周</div>
+          <div class="chip" data-r="month">本月</div>
+          <div class="chip" data-r="year">本年</div>
+        </div>
+        <div id="wChart"></div>
+      </div>
+      <div class="card">
         <div class="card-title"><span class="ci">${Icons.star()}</span>增肌要点 & 吃什么</div>
         <div class="acc open" data-a="1"><div class="acc-h">🍗 增肌饮食原则<span class="ar">▾</span></div>
           <div class="acc-b">· 蛋白质 1.6–2.2 g/kg/天：鸡胸、牛肉、鱼虾、蛋、豆腐、希腊酸奶、乳清蛋白。\n· 碳水是训练燃料：粗粮为主（燕麦、红薯、糙米），训练前后适量快碳（香蕉、白米饭）。\n· 脂肪别省：坚果、牛油果、橄榄油，占总热量 20–30%。\n· 每天喝水 2–3L，训练日多加 500ml。\n· 可考虑： creatine 肌酸 3–5g/天（需持续、多饮水），维生素 D 视情况补。</div></div>
@@ -528,6 +546,80 @@
     }
 
     $$('#spPane .acc').forEach(a => a.querySelector('.acc-h').onclick = () => a.classList.toggle('open'));
+
+    /* 体重记录交互 */
+    const wSeg = $('#wSeg');
+    if (wSeg) wSeg.querySelectorAll('.chip').forEach(el => el.onclick = () => {
+      DB.set('sport.wRange', el.dataset.r);
+      wSeg.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === el));
+      renderWeightChart();
+    });
+    const wRec = $('#wRecBtn');
+    if (wRec) wRec.onclick = () => {
+      const kg = parseFloat($('#wInp').value);
+      if (!kg || kg < 20 || kg > 300) { toast('请输入合理体重 20-300kg'); return; }
+      const ws = getWeights();
+      const i = ws.findIndex(x => x.date === today());
+      if (i >= 0) ws[i] = { date: today(), kg }; else ws.push({ date: today(), kg });
+      ws.sort((a, b) => a.date < b.date ? -1 : 1);
+      setWeights(ws);
+      $('#wInp').value = '';
+      toast('已记录 ' + kg + ' kg ⚖️');
+      renderWeightChart();
+    };
+    renderWeightChart();
+  }
+
+  /* 体重记录图表：按周/月/年显示 + 区间平均 */
+  function renderWeightChart() {
+    const range = DB.get('sport.wRange', 'week');
+    const ws = getWeights();
+    const map = {};
+    ws.forEach(w => { map[w.date] = w.kg; }); // 同日取最后一条
+    const chart = $('#wChart'); if (!chart) return;
+    let labels = [], vals = [];
+    if (range === 'week') {
+      const dates = weekDates();
+      labels = dates.map(d => { const wd = parseYMD(d).getDay(); return ['日', '一', '二', '三', '四', '五', '六'][wd]; });
+      vals = dates.map(d => map[d] != null ? map[d] : null);
+    } else if (range === 'month') {
+      const n = new Date(calY, calM + 1, 0).getDate();
+      const dates = Array.from({ length: n }, (_, i) => ymd(new Date(calY, calM, i + 1)));
+      labels = dates.map(d => d.slice(8));
+      vals = dates.map(d => map[d] != null ? map[d] : null);
+    } else {
+      labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+      const byM = Array.from({ length: 12 }, () => []);
+      ws.forEach(w => { const mm = parseYMD(w.date).getMonth(); byM[mm].push(w.kg); });
+      vals = byM.map(arr => arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : null);
+    }
+    const present = vals.filter(v => v != null);
+    const avg = present.length ? +(present.reduce((a, b) => a + b, 0) / present.length).toFixed(1) : null;
+    const minV = present.length ? Math.min(...present) : 0;
+    const maxV = present.length ? Math.max(...present) : 0;
+    if (!present.length) {
+      chart.innerHTML = '<div class="empty" style="padding:18px 0;"><div class="e-ico">⚖️</div>还没有体重记录<br>在上方输入今日体重点「记录今日」开始追踪</div>';
+      return;
+    }
+    const lo = Math.floor(minV - 1), hi = Math.ceil(maxV + 1);
+    const span = Math.max(1, hi - lo);
+    const maxH = 86;
+    const h = v => Math.max(6, Math.round((v - lo) / span * maxH));
+    const avgTop = Math.round((avg - lo) / span * maxH);
+    const colOf = v => v > avg ? '#E6866F' : (v < avg ? '#8FBF7A' : 'var(--orange)');
+    chart.innerHTML = `
+      <div class="wstat">
+        <span>区间平均 <b>${avg} kg</b></span>
+        <span>记录 ${present.length} 次</span>
+        <span>最高 ${maxV} / 最低 ${minV}</span>
+      </div>
+      <div class="wchart" style="height:${maxH}px;">
+        <div class="wavg" style="bottom:${avgTop}px;"><span>${avg}</span></div>
+        ${vals.map((v, i) => v == null
+          ? '<div class="wcol"><div class="wbar wempty"></div><div class="wlbl">' + labels[i] + '</div></div>'
+          : '<div class="wcol"><div class="wbar" style="height:' + h(v) + 'px;background:' + colOf(v) + ';" title="' + labels[i] + ': ' + v + 'kg">' + v + '</div><div class="wlbl">' + labels[i] + '</div></div>').join('')}
+      </div>
+      <div class="hint" style="margin-top:4px;">柱顶数字为体重(kg)；<span style="color:#E6866F;">红=高于均</span> <span style="color:#8FBF7A;">绿=低于均</span>；虚线为区间平均。</div>`;
   }
 
   /* 自定义排班（与自动排班并列，可自由编辑） */
