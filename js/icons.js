@@ -157,6 +157,28 @@
       <ellipse cx="35.2" cy="40" rx="1.7" ry="2.4" fill="${C.brown}"/>
     `),
 
+    /* 金色小金猪（赚一笔专属，和粉色猪区分） */
+    pigGold: () => S(`
+      <ellipse cx="32" cy="52" rx="17" ry="3.6" fill="#C98A2E" opacity=".25"/>
+      <path d="M12 21 L14 8 L26 15 Z" fill="#E8A92B" stroke="#8A5A12" stroke-width="2.3" stroke-linejoin="round"/>
+      <path d="M52 21 L50 8 L38 15 Z" fill="#E8A92B" stroke="#8A5A12" stroke-width="2.3" stroke-linejoin="round"/>
+      <ellipse cx="32" cy="35" rx="21" ry="18.5" fill="#F7CF5A" stroke="#8A5A12" stroke-width="2.4"/>
+      <path d="M32 17c-8 0-15 5-17 11 5 3 11 2 15-2z" fill="#FFE49A" opacity=".85"/>
+      <path d="M46 23c5 3 7 8 6 13-4 1-8-1-10-4z" fill="#FFE49A" opacity=".7"/>
+      <ellipse cx="17" cy="38" rx="4.6" ry="3" fill="#F2A0A0" opacity=".6"/>
+      <ellipse cx="47" cy="38" rx="4.6" ry="3" fill="#F2A0A0" opacity=".6"/>
+      <circle cx="24" cy="30" r="2.9" fill="#5A3A10"/>
+      <circle cx="40" cy="30" r="2.9" fill="#5A3A10"/>
+      <circle cx="25.1" cy="28.9" r="1" fill="#fff"/>
+      <circle cx="41.1" cy="28.9" r="1" fill="#fff"/>
+      <ellipse cx="32" cy="40" rx="9" ry="7" fill="#F2B33D" stroke="#8A5A12" stroke-width="2"/>
+      <ellipse cx="28.8" cy="40" rx="1.7" ry="2.4" fill="#8A5A12"/>
+      <ellipse cx="35.2" cy="40" rx="1.7" ry="2.4" fill="#8A5A12"/>
+      <rect x="27" y="20" width="10" height="2.6" rx="1.3" fill="#8A5A12" opacity=".8"/>
+      <circle cx="50" cy="50" r="8.5" fill="#FFD86B" stroke="#C98A2E" stroke-width="2"/>
+      <path d="M50 45.5v9M46.5 48.5h7M46.5 51.5h7" stroke="#C98A2E" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    `),
+
     /* 绵羊 */
     sheep: () => S(`
       <circle cx="16" cy="24" r="8" fill="${C.white}" stroke="${C.brown}" stroke-width="2.2"/>

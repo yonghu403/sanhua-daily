@@ -20,6 +20,7 @@
   let viewY = new Date().getFullYear();
   let viewM = new Date().getMonth() + 1;
   let viewYear = false;
+  let recCollapsed = !!DB.get('pref.moneyRecCollapsed', false);
 
   const getBills = () => DB.get('bills', []);
   const setBills = (v) => DB.set('bills', v);
@@ -63,9 +64,12 @@
       </div>
 
       <div class="card">
-        <div class="card-title"><span class="ci">${Icons.book()}</span>消费记录 <small id="recCnt"></small></div>
-        <div id="tagStat" style="margin-bottom:9px;"></div>
-        <div id="recList"></div>
+        <div class="card-title"><span class="ci">${Icons.book()}</span>消费记录 <small id="recCnt"></small>
+          <button class="chip sm" id="recToggle" style="margin-left:auto;">${recCollapsed ? '▶ 展开' : '▼ 收起'}</button></div>
+        <div id="recBody"${recCollapsed ? ' style="display:none;"' : ''}>
+          <div id="tagStat" style="margin-bottom:9px;"></div>
+          <div id="recList"></div>
+        </div>
       </div>`;
 
     $('#bdate').value = today();
@@ -78,6 +82,14 @@
       drawTags();
     });
     $('#addBill').onclick = addBill;
+    $('#recToggle').onclick = () => {
+      const b = $('#recBody');
+      const hidden = b.style.display === 'none';
+      b.style.display = hidden ? '' : 'none';
+      $('#recToggle').textContent = hidden ? '▼ 收起' : '▶ 展开';
+      recCollapsed = !hidden;
+      DB.set('pref.moneyRecCollapsed', recCollapsed);
+    };
     $('#mPrev').onclick = () => { if (viewYear) { viewY--; } else { viewM--; if (viewM < 1) { viewM = 12; viewY--; } } refresh(); };
     $('#mNext').onclick = () => { if (viewYear) { viewY++; } else { viewM++; if (viewM > 12) { viewM = 1; viewY++; } } refresh(); };
     $('#mYear').onclick = () => { viewYear = !viewYear; $('#mYear').textContent = viewYear ? '看单月' : '看整年'; refresh(); };

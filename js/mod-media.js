@@ -491,7 +491,7 @@
     if (!total) { box.innerHTML = `<div class="empty"><div class="e-ico">${Icons.chick()}</div>还没有点评～<br>看完一部好作品，来记一笔吧</div>`; return; }
     if (!reviews.length) { box.innerHTML = `<div class="empty"><div class="e-ico">${Icons.rabbit()}</div>这个时间段/类型下还没有点评～<br>换个筛选条件看看</div>`; return; }
     box.innerHTML = `
-      <div class="hint" style="margin-bottom:6px;font-size:.75rem;">筛选出 <b>${reviews.length}</b> 篇（共 ${total} 篇）· 点击任意一条查看完整点评</div>
+      <div class="hint" style="margin-bottom:6px;font-size:.75rem;">筛选出 <b>${reviews.length}</b> 篇（共 ${total} 篇）· 点击查看完整点评，<b>✎</b> 可直接修改</div>
       ${reviews.map(rv => {
         const w = watchText(rv);
         const full = rv.text || '';
@@ -503,13 +503,21 @@
             <div class="t">${esc(rv.title)} ${stars(rv.rating || 0)}</div>
             <div class="s">${brief || '<span style="color:#C9BCAA;">（没写正文）</span>'}</div>
             ${rv.imgs && rv.imgs.length ? `<div class="rthumbs">${rv.imgs.map(i => `<img class="rthumb-img" src="${i}">`).join('')}</div>` : ''}
-            <div class="hint" style="margin-top:2px;">${niceDate(rv.date)}${rv.type ? ' · ' + esc(rv.type) : ''}${w ? ' · 📅 ' + w : ''}${full.length > 42 ? ' · <b style="color:#E07B20;">查看全文 ›</b>' : ''}</div>
+            <div class="hint" style="margin-top:2px;">${niceDate(rv.date)}${rv.type ? ' · ' + esc(rv.type) : ''}${w ? ' · 📅 ' + w : ''}${rv.editedAt ? ' · 已编辑' : ''}${full.length > 42 ? ' · <b style="color:#E07B20;">查看全文 ›</b>' : ''}</div>
           </div>
-          <span class="chip sm" data-act="del">×</span>
+          <div class="rev-acts">
+            <span class="chip sm" data-act="edit" title="编辑这条点评">✎</span>
+            <span class="chip sm" data-act="del" title="删除这条点评">×</span>
+          </div>
         </div>`;
       }).join('')}`;
     box.onclick = async (e) => {
       const it = e.target.closest('[data-id]'); if (!it) return;
+      if (e.target.dataset.act === 'edit') {
+        const rv3 = getReviews().find(x => x.id === it.dataset.id);
+        if (rv3) reviewDialog(rv3);
+        return;
+      }
       if (e.target.dataset.act === 'del') {
         if (await confirmBox('删除这条点评？', '删除')) { setReviews(getReviews().filter(x => x.id !== it.dataset.id)); drawReviews($('#revList')); }
         return;
@@ -547,9 +555,11 @@
         <div class="rthumbs" id="rdImgs">${rv.imgs.map(i => `<img class="rthumb-img" src="${i}" style="width:64px;height:64px;object-fit:cover;border-radius:9px;border:1.4px solid var(--line);cursor:zoom-in;">`).join('')}</div>` : ''}
       <div class="row" style="margin-top:12px;gap:6px;">
         <button class="btn ghost grow" id="rdDel" style="color:#CC6666;border-color:#CC6666;">删除</button>
+        <button class="btn grow" id="rdEdit">编辑</button>
         <button class="btn grow" id="rdOk">关闭</button>
       </div>`, (b) => {
       $('#rdOk', b).onclick = () => modal.close();
+      $('#rdEdit', b).onclick = () => { modal.close(); reviewDialog(rv); };
       $('#rdDel', b).onclick = async () => {
         if (await confirmBox('删除这条点评？', '删除')) {
           setReviews(getReviews().filter(x => x.id !== id));
@@ -564,13 +574,18 @@
     });
   }
 
-  function addReview() {
-    const now = new Date();
-    const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
-    modal.open('写一条点评', `
-      <input class="field" id="vTitle" placeholder="作品名称">
+  function addReview() { reviewDialog(null); }
+
+  /* 写点评 / 编辑点评 共用一个对话框 */
+  function reviewDialog(rv) {
+    const isEdit = !!rv;
+    const ymdNow = today();
+    const dFrom = isEdit ? (rv.watchDateFrom || rv.date || ymdNow) : ymdNow;
+    const dTo = isEdit ? (rv.watchDateTo || dFrom) : ymdNow;
+    modal.open(isEdit ? '编辑点评' : '写一条点评', `
+      <input class="field" id="vTitle" placeholder="作品名称" value="${esc(isEdit ? rv.title : '')}">
       <div class="row" style="margin-top:8px;gap:6px;">
-        <select class="field grow" id="vType">${Object.keys(TYPE_EMO).map(t => `<option>${t}</option>`).join('')}</select>
+        <select class="field grow" id="vType">${Object.keys(TYPE_EMO).map(t => `<option${isEdit && rv.type === t ? ' selected' : ''}>${t}</option>`).join('')}</select>
         <div class="grow row" style="gap:2px;justify-content:flex-end;" id="vStars"></div>
       </div>
       <div class="hint" style="margin-top:2px;">点击星星打分（1–5）</div>
@@ -579,33 +594,37 @@
       <div style="margin-top:10px;">
         <label style="font-size:.85rem;color:#6B4630;font-weight:600;display:block;margin-bottom:4px;">📅 观看时间</label>
         <div class="row" style="gap:6px;align-items:center;">
-          <input type="date" class="field" id="vDateFrom" value="${y}-${m}-${d}" style="flex:1;">
+          <input type="date" class="field" id="vDateFrom" value="${dFrom}" style="flex:1;">
           <span style="color:#9A8874;font-size:.82rem;">至</span>
-          <input type="date" class="field" id="vDateTo" value="${y}-${m}-${d}" style="flex:1;">
+          <input type="date" class="field" id="vDateTo" value="${dTo}" style="flex:1;">
         </div>
         <div class="hint" style="margin-top:2px;font-size:.75rem;">可填写观看的起止日期，只看了一天则保持相同即可</div>
       </div>
 
-      <textarea class="field" id="vText" style="margin-top:8px;min-height:80px;" placeholder="你的心得、体会、名场面…"></textarea>
+      <textarea class="field" id="vText" style="margin-top:8px;min-height:80px;" placeholder="你的心得、体会、名场面…">${esc(isEdit ? (rv.text || '') : '')}</textarea>
       <button class="btn ghost block sm" id="vImg" style="margin-top:8px;">${Icons.photo()}添加图片（最多 3 张）</button>
       <div class="rthumbs" id="vImgPrev" style="margin-top:6px;"></div>
       <div class="row" style="margin-top:12px;">
         <button class="btn ghost grow" id="vNo">取消</button>
-        <button class="btn grow" id="vYes">保存</button>
+        <button class="btn grow" id="vYes">${isEdit ? '保存修改' : '保存'}</button>
       </div>`, (b) => {
-      let rating = 0; const imgs = [];
+      let rating = isEdit ? (Number(rv.rating) || 0) : 0;
+      const imgs = isEdit ? (rv.imgs || []).slice() : [];
+      const paintImgs = () => {
+        $('#vImgPrev', b).innerHTML = imgs.map((i, idx) => `<span style="position:relative;display:inline-block;"><img src="${i}" style="width:46px;height:46px;object-fit:cover;border-radius:9px;border:1.4px solid var(--line);"><span data-x="${idx}" style="position:absolute;top:-5px;right:-5px;background:var(--brown);color:#fff;border-radius:50%;width:16px;height:16px;line-height:16px;text-align:center;font-size:11px;">×</span></span>`).join('');
+        $$('#vImgPrev [data-x]', b).forEach(x => x.onclick = () => { imgs.splice(+x.dataset.x, 1); paintImgs(); });
+      };
       const drawStars = () => {
         $('#vStars', b).innerHTML = [1, 2, 3, 4, 5].map(i => `<span data-st="${i}" style="font-size:20px;cursor:pointer;color:${i <= rating ? 'var(--orange-d)' : 'var(--grey)'};">${i <= rating ? '★' : '☆'}</span>`).join('');
         $$('#vStars span', b).forEach(s => s.onclick = () => { rating = +s.dataset.st; drawStars(); });
       };
       drawStars();
+      paintImgs();
       $('#vNo', b).onclick = () => modal.close();
       $('#vImg', b).onclick = async () => {
         if (imgs.length >= 3) { toast('最多 3 张啦'); return; }
         const im = await pickImage(1400);
-        if (im) { imgs.push(im); $('#vImgPrev', b).innerHTML = imgs.map((i, idx) => `<span style="position:relative;display:inline-block;"><img src="${i}" style="width:46px;height:46px;object-fit:cover;border-radius:9px;border:1.4px solid var(--line);"><span data-x="${idx}" style="position:absolute;top:-5px;right:-5px;background:var(--brown);color:#fff;border-radius:50%;width:16px;height:16px;line-height:16px;text-align:center;font-size:11px;">×</span></span>`).join('');
-          $$('#vImgPrev [data-x]', b).forEach(x => x.onclick = () => { imgs.splice(+x.dataset.x, 1); $('#vImgPrev', b).innerHTML = imgs.map((i, idx) => `<span style="position:relative;display:inline-block;"><img src="${i}" style="width:46px;height:46px;object-fit:cover;border-radius:9px;border:1.4px solid var(--line);"><span data-x="${idx}" style="position:absolute;top:-5px;right:-5px;background:var(--brown);color:#fff;border-radius:50%;width:16px;height:16px;line-height:16px;text-align:center;font-size:11px;">×</span></span>`).join(''); });
-        }
+        if (im) { imgs.push(im); paintImgs(); }
       };
       $('#vYes', b).onclick = () => {
         const title = $('#vTitle', b).value.trim();
@@ -615,9 +634,25 @@
         // 确保 dateTo >= dateFrom
         const watchStart = dateFrom <= dateTo ? dateFrom : dateTo;
         const watchEnd = dateFrom <= dateTo ? dateTo : dateFrom;
-        const reviews = getReviews();
-        reviews.unshift({ id: uid(), title, type: $('#vType', b).value, rating, text: $('#vText', b).value.trim(), imgs: imgs.slice(), date: today(), ts: Date.now(), watchDateFrom: watchStart, watchDateTo: watchEnd });
-        setReviews(reviews); modal.close(); drawReviews($('#revList')); toast('点评已记下 ✍️');
+        const list = getReviews();
+        if (isEdit) {
+          const t = list.find(x => x.id === rv.id);
+          if (!t) { modal.close(); toast('这条点评找不到了'); return; }
+          t.title = title;
+          t.type = $('#vType', b).value;
+          t.rating = rating;
+          t.text = $('#vText', b).value.trim();
+          t.imgs = imgs.slice();
+          t.watchDateFrom = watchStart;
+          t.watchDateTo = watchEnd;
+          t.editedAt = Date.now();
+          setReviews(list); modal.close();
+          if ($('#revList')) drawReviews($('#revList'));
+          toast('点评改好啦 ✍️');
+          return;
+        }
+        list.unshift({ id: uid(), title, type: $('#vType', b).value, rating, text: $('#vText', b).value.trim(), imgs: imgs.slice(), date: today(), ts: Date.now(), watchDateFrom: watchStart, watchDateTo: watchEnd });
+        setReviews(list); modal.close(); drawReviews($('#revList')); toast('点评已记下 ✍️');
       };
     });
   }
