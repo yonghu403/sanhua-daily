@@ -599,6 +599,19 @@ select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 .hb-bar{flex:1;min-width:0;}
 .hb-v{width:88px;flex:0 0 auto;text-align:right;font-size:11px;color:var(--brown2);white-space:nowrap;}
 
+/* ===== 未来信件箱 / 本周聚焦 / 安慰便签 ===== */
+.lt-bar{flex:1;min-width:70px;height:8px;background:var(--cream);border:1px solid var(--line);border-radius:5px;overflow:hidden;}
+.lt-bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--orange),var(--orange-d));border-radius:5px;transition:width .35s ease;}
+.lt-pct{flex:0 0 auto;width:40px;text-align:right;font-size:12px;font-weight:800;color:var(--orange-d);}
+.lt-stage{font-size:10.5px;color:var(--brown-soft);margin-top:2px;line-height:1.45;word-break:break-word;}
+.letter-item.done{opacity:.72;}
+.letter-item.done .t{text-decoration:line-through;}
+.lt-slider{width:100%;margin:8px 0 2px;accent-color:var(--orange);}
+.lt-quick{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+.wish-week{flex:0 0 auto;font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:8px;background:var(--orange-xl);color:var(--orange-d);border:1px solid var(--orange-l);white-space:nowrap;}
+.wish-week.off{background:transparent;color:var(--brown-soft);border-color:var(--line);}
+.comfort-note{font-size:12.8px;line-height:1.8;color:var(--brown2);white-space:pre-wrap;position:relative;z-index:2;}
+
 /* ===== 吃睡 ===== */
 .nutri-bar{height:11px;border-radius:6px;background:var(--cream);overflow:hidden;display:flex;border:1.2px solid var(--line);}
 .nutri-bar i{display:block;height:100%;}

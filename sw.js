@@ -1,5 +1,5 @@
 /* 三花日常 Service Worker v19 — 全网络优先 + 缓存兜底（强制破旧缓存） */
-const CACHE = 'sanhua-v34';
+const CACHE = 'sanhua-v35';
 const ASSETS = [
   './',
   './index.html',
@@ -7,24 +7,24 @@ const ASSETS = [
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
-  './css/style.css?v=34',
-  './js/icons.js?v=34',
-  './js/db.js?v=34',
-  './js/ui.js?v=34',
-  './js/mod-todo.js?v=34',
-  './js/mod-money.js?v=34',
-  './js/mod-earn.js?v=34',
-  './js/mod-eatsleep.js?v=34',
-  './js/mod-sport.js?v=34',
-  './js/mod-outfit.js?v=34',
-  './js/mod-beauty.js?v=34',
-  './js/mod-deep.js?v=34',
-  './js/mod-media.js?v=34',
-  './js/china-rooster.js?v=34',
-  './js/mod-travel.js?v=34',
-  './js/mod-health.js?v=34',
-  './js/mod-settings.js?v=34',
-  './js/app.js?v=34'
+  './css/style.css?v=35',
+  './js/icons.js?v=35',
+  './js/db.js?v=35',
+  './js/ui.js?v=35',
+  './js/mod-todo.js?v=35',
+  './js/mod-money.js?v=35',
+  './js/mod-earn.js?v=35',
+  './js/mod-eatsleep.js?v=35',
+  './js/mod-sport.js?v=35',
+  './js/mod-outfit.js?v=35',
+  './js/mod-beauty.js?v=35',
+  './js/mod-deep.js?v=35',
+  './js/mod-media.js?v=35',
+  './js/china-rooster.js?v=35',
+  './js/mod-travel.js?v=35',
+  './js/mod-health.js?v=35',
+  './js/mod-settings.js?v=35',
+  './js/app.js?v=35'
 ];
 
 /* 安装：逐文件缓存 */
